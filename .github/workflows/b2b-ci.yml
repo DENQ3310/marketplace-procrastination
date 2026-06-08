@@ -1,0 +1,77 @@
+name: b2b-ci
+
+on:
+  push:
+
+jobs:
+  lint:
+    name: "B2B: Lint"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/b2b
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          allow-prereleases: true
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            services/b2b/uv.lock
+            services/b2b/pyproject.toml
+
+      - name: Create .env from secret
+        env:
+          B2B_ENV_FILE: ${{ secrets.B2B_ENV_FILE }}
+        run: |
+          printf '%s' "$B2B_ENV_FILE" > .env
+
+      - name: Install dependencies
+        run: uv sync --frozen --dev
+
+      - name: Lint
+        run: make check
+
+  test:
+    name: "B2B: Tests"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/b2b
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          allow-prereleases: true
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            services/b2b/uv.lock
+            services/b2b/pyproject.toml
+
+      - name: Create .env from secret
+        env:
+          B2B_ENV_FILE: ${{ secrets.B2B_ENV_FILE }}
+        run: |
+          printf '%s' "$B2B_ENV_FILE" > .env
+
+      - name: Install dependencies
+        run: uv sync --frozen --dev
+
+      - name: Test
+        run: make test

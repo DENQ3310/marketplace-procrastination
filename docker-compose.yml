@@ -1,0 +1,26 @@
+include:
+  - path: ./services/b2b/docker-compose.yml
+  - path: ./services/b2c/docker-compose.yml
+
+services:
+  rabbitmq:
+    image: "rabbitmq:4.3.1-management"
+    ports:
+      - "${RABBITMQ_PORT}:${RABBITMQ_PORT}"
+      - "${RABBITMQ_MANAGEMENT_PORT}:${RABBITMQ_MANAGEMENT_PORT}"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST}
+    networks:
+      - shared_ms_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+networks:
+  shared_ms_network:
+    name: shared_ms_network  
+    driver: bridge

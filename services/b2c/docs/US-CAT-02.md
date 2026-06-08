@@ -1,0 +1,40 @@
+# US-CAT-02: поиск товаров
+
+## Что сделано
+
+Реализован поиск товаров для B2C каталога: покупатель может искать товары по названию и описанию через строку поиска, не зная точную категорию. Поиск корректно обрабатывает короткие запросы, специальные символы (например, `iPhone%15` или `кофе'`) и пустые результаты.
+
+*Примечание*: В квесте указано, что данные должны браться из B2B через проксирование, но в текущей реализации данные берутся напрямую из базы данных B2C сервиса. 
+
+### API
+
+Перечень реализованных эндпоинтов:
+
+- `GET /api/v1/products`
+  - **Query/Path params**: `category_id` (обязательный), `search` (опционально, минимум 4 символа после trim), `limit` (default `20`), `offset` (default `0`), `filters` (JSON-строка, опционально), `sort` (default `rating`)
+  - **Код 200**: `ProductShortListResponse` — список товаров, соответствующих поисковому запросу, с полями `items[]` (id, title, image, price, in_stock, is_in_cart), `total_count`, `limit`, `offset`. Пустой список, если ничего не найдено
+  - **Код 400**: `Search query must be at least 3 characters` (поисковый запрос короче 4 символов после trim)
+  - **Код 500**: текст ошибки (прочие сбои)
+
+## Запуск
+
+```bash
+make build up migrate
+```
+
+По адресу `localhost:8000/docs` можно найти документацию API-эндпоинтов.
+
+## Автотесты
+
+```bash
+make test
+```
+
+- `tests/integration/test_catalog.py::test_search_title_returns_matching_products` — поиск по названию товара возвращает соответствующие результаты
+- `tests/integration/test_catalog.py::test_search_description_returns_matching_products` — поиск по описанию товара возвращает соответствующие результаты
+- `tests/integration/test_catalog.py::test_short_query_returns_400` — короткий поисковый запрос (< 4 символов) возвращает 400
+- `tests/integration/test_catalog.py::test_empty_results_returns_200` — пустой результат поиска возвращает 200 с пустым списком items
+- `tests/integration/test_catalog.py::test_special_chars_do_not_break_query` — специальные символы (`!@#$%^&*()`) в поисковом запросе не ломают SQL-запрос и возвращают корректный ответ
+
+Тесты успешно проходят (см. джобу tests).
+

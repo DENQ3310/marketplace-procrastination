@@ -1,0 +1,41 @@
+[project]
+name = "marketplace-procrastination"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "pre-commit>=4.6.0",
+]
+
+#[tool.uv.workspace]
+#members = ["services/*", "shared"]
+## b2b = "uvicorn --project services.b2b.main:app --reload"
+#
+#[tool.uv.sources]
+#shared = { workspace = true }
+
+[tool.ruff]
+lint.extend-select = [
+    "FAST",
+    "ANN",
+    "S",
+    "BLE",
+    "B",
+    "C4",
+    "FIX",
+    "LOG",
+    "Q",
+    "ARG",
+    "PTH",
+    "N",
+]
+
+[tool.ruff.format]
+quote-style =  "double"
+indent-style = "tab"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.6",
+]

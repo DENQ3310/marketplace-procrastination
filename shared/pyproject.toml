@@ -1,0 +1,12 @@
+﻿[project]
+name = "shared"
+version = "0.1.0"
+dependencies = [
+    "pydantic-settings>=2.2.1",
+    "python-dotenv>=1.0.1",
+    "sqlalchemy>=2.0.0"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
