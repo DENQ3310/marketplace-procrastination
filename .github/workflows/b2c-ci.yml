@@ -2,6 +2,9 @@ name: b2c-ci
 
 on:
   push:
+    paths:
+      - ".github/workflows/b2c-ci.yml"
+      - "services/b2c/**"
 
 jobs:
   lint:
@@ -32,7 +35,11 @@ jobs:
         env:
           B2C_ENV_FILE: ${{ secrets.B2C_ENV_FILE }}
         run: |
-          printf '%s' "$B2C_ENV_FILE" > .env
+          if [ -n "$B2C_ENV_FILE" ]; then
+            printf '%s' "$B2C_ENV_FILE" > .env
+          else
+            cp .env.example .env
+          fi
 
       - name: Install dependencies
         run: uv sync --frozen --dev
@@ -68,7 +75,11 @@ jobs:
         env:
           B2C_ENV_FILE: ${{ secrets.B2C_ENV_FILE }}
         run: |
-          printf '%s' "$B2C_ENV_FILE" > .env
+          if [ -n "$B2C_ENV_FILE" ]; then
+            printf '%s' "$B2C_ENV_FILE" > .env
+          else
+            cp .env.example .env
+          fi
 
       - name: Install dependencies
         run: uv sync --frozen --dev
