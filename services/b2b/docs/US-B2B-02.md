@@ -3,7 +3,7 @@
 ## Что сделано
 
 Добавление варианта товара (SKU) и отправка товара на модерацию при первом SKU.
-Доставка событий: transactional outbox (`outbox_events`) + фоновый worker (`OUTBOX_WORKER_ENABLED`), публикация в RabbitMQ (`core/messaging`). Повторный SKU у товара, у которого уже есть варианты, не меняет статус и не создаёт событие в outbox.
+Доставка событий: transactional outbox (`outbox_events`) + фоновый worker (`OUTBOX_WORKER_ENABLED`), публикация в RabbitMQ (`core/messaging`). Сообщение передаёт `X-Service-Key` в AMQP headers, а payload содержит уникальный `idempotency_key`. Повторный SKU у товара, у которого уже есть варианты, не меняет статус и не создаёт событие в outbox. Строка товара блокируется через `SELECT FOR UPDATE`, поэтому два параллельных запроса не могут одновременно определить себя как первый SKU.
 
 ### API
 
@@ -31,14 +31,15 @@ make test
 ```
 
 - `test_create_sku.py` - сценарии квеста US-B2B-02:
-  - `test_first_sku_emits_created_event_to_moderation` - первый SKU с `images[]` уходит на модерацию `ON_MODERATION`;
-  - `test_first_sku_enqueues_created_event_to_outbox` - событие `CREATED` в `outbox_events` (PENDING);
-  - `test_second_sku_no_state_change` - второй SKU не меняет статус `MODERATED`;
+  - `test_first_sku_transitions_product_to_on_moderation` - первый SKU с `images[]` переводит товар в `ON_MODERATION`;
+  - `test_first_sku_emits_created_event_to_moderation` - событие `CREATED` записывается в `outbox_events` со статусом `PENDING`;
+  - `test_second_sku_no_state_change` - второй SKU не меняет статус `ON_MODERATION`;
   - `test_add_sku_to_hard_blocked_returns_403` - попытка добавить SKU к HARD_BLOCKED;
-  - `test_first_sku_without_images_returns_400` - первый SKU без изображений;
+  - `test_missing_image_returns_400` - первый SKU без изображений;
   - `test_missing_image_url_on_attach_returns_400` - `POST /skus/{id}/images` без `url`
+- `test_messaging.py` - публикация события с `X-Service-Key` в AMQP headers.
 
-Тесты успешно проходят (см. джобу tests)
+Полный набор тестов запускается командой `make test` или в job `B2B: Tests`.
 
 ## ADR
 
@@ -70,6 +71,7 @@ make test
 ### Core / инфраструктура
 
 - `core/messaging.py` - `publish_message` (RabbitMQ)
+- `core/config.py`, `.env.example` - `MODERATION_SERVICE_KEY`
 - `main.py` - lifespan, запуск outbox worker
 
 ### Схемы и модели

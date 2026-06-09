@@ -47,8 +47,8 @@ class SkuCreate(BaseModel):
 	discount: int = Field(default=0, ge=0)
 	cost_price: Optional[int] = Field(default=None, ge=0)
 	article: Optional[str] = None
-	images: List[SkuImageCreate] = []
-	characteristics: List[CharacteristicSchema] = []
+	images: List[SkuImageCreate] = Field(default_factory=list)
+	characteristics: List[CharacteristicSchema] = Field(default_factory=list)
 
 
 class SkuUpdate(BaseModel):
@@ -71,8 +71,8 @@ class SkuResponse(BaseModel):
 	active_quantity: int = 0
 	reserved_quantity: int = 0
 	article: Optional[str] = None
-	characteristics: List[CharacteristicSchema] = []
-	images: List[ImageSchema] = []
+	characteristics: List[CharacteristicSchema] = Field(default_factory=list)
+	images: List[ImageSchema] = Field(default_factory=list)
 	created_at: datetime
 	updated_at: datetime
 

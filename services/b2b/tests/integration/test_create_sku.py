@@ -40,7 +40,7 @@ async def _create_sku(
 	return response.json()
 
 
-async def test_first_sku_emits_created_event_to_moderation(
+async def test_first_sku_transitions_product_to_on_moderation(
 	client: AsyncClient,
 	product_no_skus: CategoryWithProductsData,
 	db_session: AsyncSession,
@@ -60,7 +60,7 @@ async def test_first_sku_emits_created_event_to_moderation(
 	assert product_response.json()["status"] == "ON_MODERATION"
 
 
-async def test_first_sku_enqueues_created_event_to_outbox(
+async def test_first_sku_emits_created_event_to_moderation(
 	client: AsyncClient,
 	product_no_skus: CategoryWithProductsData,
 	db_session: AsyncSession,
@@ -73,7 +73,10 @@ async def test_first_sku_enqueues_created_event_to_outbox(
 	events = await _outbox_events_for_product(db_session, product.id)
 	assert len(events) == 1
 	assert events[0].payload["event"] == "CREATED"
+	assert events[0].payload["product_id"] == str(product.id)
 	assert events[0].payload["seller_id"] == str(product.seller_id)
+	assert uuid.UUID(events[0].payload["idempotency_key"]) == events[0].idempotency_key
+	assert events[0].payload["date"].endswith("Z")
 	assert events[0].status == OutboxEventStatus.PENDING
 
 
@@ -98,7 +101,7 @@ async def test_second_sku_no_state_change(
 	assert events == []
 
 
-async def test_add_sku_to_moderated_returns_on_moderation_and_edited(
+async def test_subsequent_sku_on_moderated_product_no_state_change(
 	client: AsyncClient,
 	edit_product_data: EditProductData,
 	db_session: AsyncSession,
@@ -113,16 +116,13 @@ async def test_add_sku_to_moderated_returns_on_moderation_and_edited(
 		headers=headers,
 	)
 	assert product_response.status_code == 200
-	assert product_response.json()["status"] == "ON_MODERATION"
+	assert product_response.json()["status"] == "MODERATED"
 
 	events = await _outbox_events_for_product(db_session, product.id)
-	assert len(events) == 1
-	assert events[0].payload["event"] == "EDITED"
-	assert events[0].payload["seller_id"] == str(edit_product_data.owner.id)
-	assert events[0].status == OutboxEventStatus.PENDING
+	assert events == []
 
 
-async def test_add_sku_to_blocked_returns_on_moderation_and_edited(
+async def test_subsequent_sku_on_blocked_product_no_state_change(
 	client: AsyncClient,
 	blocked_product: CategoryWithProductsData,
 	db_session: AsyncSession,
@@ -137,13 +137,10 @@ async def test_add_sku_to_blocked_returns_on_moderation_and_edited(
 		headers=headers,
 	)
 	assert product_response.status_code == 200
-	assert product_response.json()["status"] == "ON_MODERATION"
+	assert product_response.json()["status"] == "BLOCKED"
 
 	events = await _outbox_events_for_product(db_session, product.id)
-	assert len(events) == 1
-	assert events[0].payload["event"] == "EDITED"
-	assert events[0].payload["seller_id"] == str(product.seller_id)
-	assert events[0].status == OutboxEventStatus.PENDING
+	assert events == []
 
 
 async def test_add_sku_to_hard_blocked_returns_403(
@@ -160,9 +157,11 @@ async def test_add_sku_to_hard_blocked_returns_403(
 		json={"product_id": str(product.id), "name": "Test SKU", "price": 100},
 	)
 	assert response.status_code == 403
+	assert response.json()["code"] == "FORBIDDEN"
+	assert set(response.json()) == {"code", "message"}
 
 
-async def test_first_sku_without_images_returns_400(
+async def test_missing_image_returns_400(
 	client: AsyncClient,
 	product_no_skus: CategoryWithProductsData,
 	db_session: AsyncSession,
@@ -176,6 +175,8 @@ async def test_first_sku_without_images_returns_400(
 		json={"product_id": str(product.id), "name": "Test SKU", "price": 100},
 	)
 	assert response.status_code == 400
+	assert response.json()["code"] == "INVALID_REQUEST"
+	assert set(response.json()) == {"code", "message"}
 
 
 async def test_missing_image_url_on_attach_returns_400(

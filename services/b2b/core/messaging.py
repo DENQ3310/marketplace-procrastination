@@ -15,6 +15,9 @@ def _rabbitmq_url() -> str:
 
 async def publish_message(routing_key: str, payload: dict) -> None:
 	body = json.dumps(payload).encode("utf-8")
+	headers = {}
+	if routing_key.startswith("moderation.") and settings.MODERATION_SERVICE_KEY:
+		headers["X-Service-Key"] = settings.MODERATION_SERVICE_KEY
 	connection = await aio_pika.connect_robust(_rabbitmq_url())
 	async with connection:
 		channel = await connection.channel()
@@ -24,6 +27,10 @@ async def publish_message(routing_key: str, payload: dict) -> None:
 			durable=True,
 		)
 		await exchange.publish(
-			Message(body=body, delivery_mode=DeliveryMode.PERSISTENT),
+			Message(
+				body=body,
+				delivery_mode=DeliveryMode.PERSISTENT,
+				headers=headers,
+			),
 			routing_key=routing_key,
 		)

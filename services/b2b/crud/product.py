@@ -76,8 +76,16 @@ async def get_product_by_id(
 	return result.scalar_one_or_none()
 
 
-async def get_product_by_id_only(db: AsyncSession, product_id: UUID) -> Product | None:
-	result = await db.execute(select(Product).where(Product.id == product_id))
+async def get_product_by_id_only(
+	db: AsyncSession,
+	product_id: UUID,
+	*,
+	for_update: bool = False,
+) -> Product | None:
+	query = select(Product).where(Product.id == product_id)
+	if for_update:
+		query = query.with_for_update()
+	result = await db.execute(query)
 	return result.scalar_one_or_none()
 
 

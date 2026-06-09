@@ -66,7 +66,13 @@ def _process_sku_images(images: list[SkuImageCreate]) -> list[dict]:
 
 
 async def create_sku(db: AsyncSession, data: SkuCreate, seller_id: UUID) -> SkuResponse:
-	product = await product_crud.get_product_by_id_only(db, data.product_id)
+	# Serialize SKU creation for a product so only one concurrent request can
+	# observe that it is creating the first SKU.
+	product = await product_crud.get_product_by_id_only(
+		db,
+		data.product_id,
+		for_update=True,
+	)
 	if not product:
 		raise ProductNotFoundError(f"Product with id {data.product_id} not found")
 	if product.seller_id != seller_id:
@@ -81,14 +87,9 @@ async def create_sku(db: AsyncSession, data: SkuCreate, seller_id: UUID) -> SkuR
 	sku_images = _process_sku_images(data.images)
 	is_first_sku = await sku_crud.count_skus_by_product_id(db, product.id) == 0
 
-	moderation_event: str | None = None
+	moderation_event = None
 	if is_first_sku and product.status == ProductStatusEnum.CREATED:
 		moderation_event = "CREATED"
-	elif product.status in (
-		ProductStatusEnum.MODERATED,
-		ProductStatusEnum.BLOCKED,
-	):
-		moderation_event = "EDITED"
 
 	if moderation_event == "CREATED" and not sku_images:
 		raise SkuValidationError("at least one image is required for the first SKU")
