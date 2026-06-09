@@ -8,16 +8,18 @@
 
 ### API
 
-- **`PATCH /api/v1/products/{product_id}`**
+- **`PUT /api/v1/products/{product_id}`**
   - **Auth**: Bearer JWT.
   - **Body**: `ProductUpdate (title, description, category_id, characteristics[])`
   - **Код 200**: `ProductResponse` с актуальным `status` (при re-moderation - `ON_MODERATION`).
+  - **Категория и характеристики**: новая категория валидируется, переданный список характеристик атомарно заменяет старый.
   - **Коды ошибок**: `404` `NOT_FOUND` (товар не найден); `403` `NOT_OWNER` (чужой товар); `403` `FORBIDDEN` (товар `HARD_BLOCKED`).
 
-- **`PATCH /api/v1/skus/{sku_id}`**
+- **`PUT /api/v1/skus/{sku_id}`**
   - **Auth**: Bearer JWT.
   - **Body**: `SkuUpdate (name, price, discount, cost_price, article, characteristics[])`.
   - **Код 200**: `SkuResponse` (включая неизменённый `reserved_quantity`).
+  - **Характеристики**: переданный список атомарно заменяет старые характеристики SKU.
   - **Побочный эффект**: при `MODERATED`/`BLOCKED` у родительского товара - переход в `ON_MODERATION` + outbox-событие `EDITED`.
   - **Коды ошибок**: `404` `NOT_FOUND` (SKU не найден); `403` `NOT_OWNER` (SKU чужого продавца); `403` `FORBIDDEN` (родительский товар `HARD_BLOCKED`).
 ## Запуск
@@ -35,7 +37,7 @@ make test
 
 - `test_edit_product.py`
 
-Тесты успешно проходят (см. джобу tests)
+Дополнительно проверяются замена характеристик товара/SKU и единый формат ошибок `{code, message}`.
 
 ## ADR
 
@@ -52,12 +54,12 @@ make test
 
 ### API эндпоинты
 
-- `api/products.py` - `patch_product`
+- `api/products.py` - `update_product`
 - `api/sku.py` - `update_sku_endpoint`
 
 ### Сервисы
 
-- `services/product_service.py` - `patch_existing_product`, `_get_owned_product`, `build_product_response`
+- `services/product_service.py` - `update_existing_product`, `_get_owned_product`, `build_product_response`
 - `services/sku_service.py` - `update_sku`, `_get_owned_sku`, `build_sku_response`
 
 ### CRUD

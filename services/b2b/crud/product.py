@@ -7,7 +7,7 @@ from database.models.catalog.variants import (
 	Image,
 	ImageEntityTypeEnum,
 )
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -125,10 +125,28 @@ async def update_product(
 	update_data: dict,
 	should_remoderate: bool = False,
 ) -> Product:
+	characteristics = update_data.pop("characteristics", None)
 	for field, value in update_data.items():
 		setattr(db_obj, field, value)
 
 	db.add(db_obj)
+	if characteristics is not None:
+		await db.execute(
+			delete(Characteristic).where(
+				Characteristic.product_id == db_obj.id,
+				Characteristic.sku_id.is_(None),
+			)
+		)
+		db.add_all(
+			[
+				Characteristic(
+					product_id=db_obj.id,
+					name=characteristic["name"],
+					value=characteristic["value"],
+				)
+				for characteristic in characteristics
+			]
+		)
 	if should_remoderate:
 		await submit_for_moderation(db, db_obj, event="EDITED")
 

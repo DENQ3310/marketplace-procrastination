@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -97,18 +97,32 @@ async def update(
 		return None
 
 	data.pop("product_id", None)
-	data.pop("characteristics", None)
+	characteristics = data.pop("characteristics", None)
 	data.pop("images", None)
 	data.pop("reserved_quantity", None)
 
 	for key, value in data.items():
 		setattr(sku, key, value)
 
+	if characteristics is not None:
+		await db.execute(delete(Characteristic).where(Characteristic.sku_id == sku.id))
+		db.add_all(
+			[
+				Characteristic(
+					sku_id=sku.id,
+					name=characteristic["name"],
+					value=characteristic["value"],
+				)
+				for characteristic in characteristics
+			]
+		)
 	if should_remoderate and product is not None:
 		await product_crud.submit_for_moderation(db, product, event="EDITED")
 
 	await db.commit()
 	await db.refresh(sku)
+	if characteristics is not None:
+		await db.refresh(sku, attribute_names=["characteristics"])
 	return sku
 
 

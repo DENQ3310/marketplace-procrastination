@@ -170,7 +170,7 @@ async def get_all_seller_products(db: AsyncSession, seller_id: UUID) -> list[Pro
 	return await product_crud.get_seller_products(db, seller_id)
 
 
-async def patch_existing_product(
+async def update_existing_product(
 	db: AsyncSession, product_id: UUID, seller_id: UUID, product_in: ProductUpdate
 ) -> ProductResponse:
 	product = await _get_owned_product(db, product_id, seller_id)
@@ -180,6 +180,8 @@ async def patch_existing_product(
 	]
 
 	update_data = product_in.model_dump(exclude_unset=True)
+	if category_id := update_data.get("category_id"):
+		await category_service.get_category_or_404(db, category_id)
 	updated_product = await product_crud.update_product(
 		db,
 		product,
