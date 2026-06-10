@@ -1,5 +1,7 @@
+import uuid
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from core.db import get_db
@@ -11,6 +13,8 @@ from exceptions.invoice import (
 	InvoiceNotFoundError,
 	InvalidInvoiceStatusError,
 	EmptyInvoiceError,
+	InvoiceSkuNotModeratedError,
+	InvoiceSkuNotOwnerError,
 )
 from exceptions.sku import SkuNotFoundError
 
@@ -20,20 +24,38 @@ router = APIRouter(prefix="/invoices", tags=["Invoices"])
 
 @router.post("", response_model=InvoiceResponse, status_code=status.HTTP_201_CREATED)
 async def create_invoice_endpoint(
-	invoice_data: InvoiceCreate, db: Annotated[AsyncSession, Depends(get_db)]
+	request: Request,
+	invoice_data: InvoiceCreate,
+	db: Annotated[AsyncSession, Depends(get_db)],
 ) -> InvoiceResponse:
+	seller_id = uuid.UUID(str(request.state.user_id))
 	try:
-		# Временно используем фиксированный UUID для seller_id, пока нет авторизации
-		temp_seller_id = "550e8400-e29b-41d4-a716-446655440000"
-		return await invoice_service.create_new_invoice(
-			db, invoice_data, temp_seller_id
-		)
+		return await invoice_service.create_new_invoice(db, invoice_data, seller_id)
 	except SkuNotFoundError as e:
-		raise HTTPException(status_code=404, detail=str(e)) from e
+		raise HTTPException(
+			status_code=404,
+			detail={"code": "NOT_FOUND", "message": str(e)},
+		) from e
 	except EmptyInvoiceError as e:
-		raise HTTPException(status_code=400, detail=str(e)) from e
+		raise HTTPException(
+			status_code=400,
+			detail={"code": "EMPTY_ITEMS", "message": str(e)},
+		) from e
+	except InvoiceSkuNotModeratedError as e:
+		raise HTTPException(
+			status_code=400,
+			detail={"code": "SKU_NOT_MODERATED", "message": str(e)},
+		) from e
+	except InvoiceSkuNotOwnerError as e:
+		raise HTTPException(
+			status_code=403,
+			detail={"code": "NOT_OWNER", "message": str(e)},
+		) from e
 	except InvoiceError as e:
-		raise HTTPException(status_code=400, detail=str(e)) from e
+		raise HTTPException(
+			status_code=400,
+			detail={"code": "INVALID_INVOICE", "message": str(e)},
+		) from e
 
 
 @router.get("/{invoice_id}", response_model=InvoiceResponse)

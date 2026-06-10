@@ -1,12 +1,14 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from uuid import UUID
 from datetime import datetime
 from typing import List
 
+from database.models.catalog.inventory import InvoiceStatusEnum
+
 
 class InvoiceItemCreate(BaseModel):
 	sku_id: UUID
-	quantity: int
+	quantity: int = Field(..., gt=0)
 
 
 class InvoiceItemResponse(BaseModel):
@@ -24,7 +26,7 @@ class InvoiceCreate(BaseModel):
 class InvoiceResponse(BaseModel):
 	id: UUID
 	seller_id: UUID
-	status: str
+	status: InvoiceStatusEnum
 	items: List[InvoiceItemResponse]
 	created_at: datetime
 	updated_at: datetime

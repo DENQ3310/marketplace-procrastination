@@ -11,7 +11,7 @@ from database.core import Base
 
 
 class InvoiceStatusEnum(str, enum.Enum):
-	DRAFT = "CREATED"
+	DRAFT = "DRAFT"
 	PENDING = "PENDING"
 	ACCEPTED = "ACCEPTED"
 	REJECTED = "REJECTED"
@@ -26,7 +26,7 @@ class Invoice(Base):
 	)
 	seller_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
 	status: Mapped[InvoiceStatusEnum] = mapped_column(
-		default=InvoiceStatusEnum.DRAFT, server_default="CREATED"
+		default=InvoiceStatusEnum.DRAFT, server_default="DRAFT"
 	)
 	created_at: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), server_default=func.now()

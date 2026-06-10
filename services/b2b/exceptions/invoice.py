@@ -12,3 +12,11 @@ class InvalidInvoiceStatusError(InvoiceError):
 
 class EmptyInvoiceError(InvoiceError):
 	"""Basic exception if there are no items in the invoice"""
+
+
+class InvoiceSkuNotModeratedError(InvoiceError):
+	"""Raised when an invoice contains a SKU of a non-moderated product."""
+
+
+class InvoiceSkuNotOwnerError(InvoiceError):
+	"""Raised when an invoice contains another seller's SKU."""

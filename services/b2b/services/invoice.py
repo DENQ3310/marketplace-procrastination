@@ -2,19 +2,38 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from crud import invoice as invoice_crud
 from crud import sku as sku_crud
-from database.models.catalog.inventory import Invoice
+from database.models.catalog.base import ProductStatusEnum
+from database.models.catalog.inventory import Invoice, InvoiceStatusEnum
 from schemas.invoice import InvoiceCreate
-from exceptions.invoice import InvoiceNotFoundError, InvalidInvoiceStatusError
+from exceptions.invoice import (
+	EmptyInvoiceError,
+	InvoiceNotFoundError,
+	InvoiceSkuNotModeratedError,
+	InvoiceSkuNotOwnerError,
+	InvalidInvoiceStatusError,
+)
 from exceptions.sku import SkuNotFoundError
 
 
 async def create_new_invoice(
 	db: AsyncSession, invoice_data: InvoiceCreate, seller_id: UUID
 ) -> Invoice:
+	if not invoice_data.items:
+		raise EmptyInvoiceError("Invoice must contain at least one item")
+
 	for item in invoice_data.items:
-		sku = await sku_crud.get_sku_by_id(db, item.sku_id)
-		if not sku:
+		pair = await sku_crud.get_sku_and_product(db, item.sku_id)
+		if pair is None:
 			raise SkuNotFoundError(f"SKU with id {item.sku_id} not found")
+		_, product = pair
+		if product.seller_id != seller_id:
+			raise InvoiceSkuNotOwnerError(
+				f"SKU with id {item.sku_id} belongs to another seller"
+			)
+		if product.status != ProductStatusEnum.MODERATED:
+			raise InvoiceSkuNotModeratedError(
+				f"SKU with id {item.sku_id} must belong to a moderated product"
+			)
 
 	return await invoice_crud.create_invoice(db, invoice_data, seller_id)
 
@@ -31,7 +50,7 @@ async def accept_invoice(db: AsyncSession, invoice_id: UUID) -> Invoice:
 	if not invoice:
 		raise InvoiceNotFoundError(str(invoice_id))
 
-	if invoice.status != "CREATED":
+	if invoice.status != InvoiceStatusEnum.PENDING:
 		raise InvalidInvoiceStatusError(invoice.status, "accept")
 
 	for item in invoice.items:
@@ -53,7 +72,7 @@ async def delete_invoice(db: AsyncSession, invoice_id: UUID) -> None:
 	if not invoice:
 		raise InvoiceNotFoundError(str(invoice_id))
 
-	if invoice.status != "CREATED":
+	if invoice.status != InvoiceStatusEnum.PENDING:
 		raise InvalidInvoiceStatusError(invoice.status, "delete")
 
 	await invoice_crud.delete_invoice(db, invoice)

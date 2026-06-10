@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import joinedload
 from uuid import UUID
-from database.models.catalog.inventory import Invoice, InvoiceItem
+from database.models.catalog.inventory import Invoice, InvoiceItem, InvoiceStatusEnum
 from schemas.invoice import InvoiceCreate
 
 
@@ -12,6 +12,7 @@ async def create_invoice(
 	"""Creates an invoice and its items in one transaction."""
 	db_invoice = Invoice(
 		seller_id=seller_id,
+		status=InvoiceStatusEnum.PENDING,
 	)
 	db.add(db_invoice)
 	await db.flush()
@@ -76,7 +77,7 @@ async def update_invoice_status(
 
 
 async def update_invoice_to_accepted(db: AsyncSession, invoice: Invoice) -> Invoice:
-	invoice.status = "ACCEPTED"
+	invoice.status = InvoiceStatusEnum.ACCEPTED
 	invoice.accepted_at = func.now()
 
 	await db.commit()

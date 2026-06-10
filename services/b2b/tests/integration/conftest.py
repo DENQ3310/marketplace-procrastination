@@ -162,6 +162,56 @@ class DeleteProductData:
 	other_seller_product: Product
 
 
+@dataclass(frozen=True, slots=True)
+class CreateInvoiceData:
+	owner: Seller
+	moderated_sku: Sku
+	non_moderated_sku: Sku
+	other_seller_sku: Sku
+
+
+@pytest.fixture()
+async def create_invoice_data(db_session: AsyncSession) -> CreateInvoiceData:
+	owner: Seller = SellerFactory.build()
+	other_seller: Seller = SellerFactory.build()
+	category = CategoryFactory.build()
+	db_session.add_all([owner, other_seller, category])
+	await db_session.flush()
+
+	moderated_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=owner.id,
+		status=ProductStatusEnum.MODERATED,
+	)
+	non_moderated_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=owner.id,
+		status=ProductStatusEnum.ON_MODERATION,
+	)
+	other_seller_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=other_seller.id,
+		status=ProductStatusEnum.MODERATED,
+	)
+	db_session.add_all(
+		[moderated_product, non_moderated_product, other_seller_product]
+	)
+	await db_session.flush()
+
+	moderated_sku = SkuFactory.build(product_id=moderated_product.id)
+	non_moderated_sku = SkuFactory.build(product_id=non_moderated_product.id)
+	other_seller_sku = SkuFactory.build(product_id=other_seller_product.id)
+	db_session.add_all([moderated_sku, non_moderated_sku, other_seller_sku])
+	await db_session.commit()
+
+	return CreateInvoiceData(
+		owner=owner,
+		moderated_sku=moderated_sku,
+		non_moderated_sku=non_moderated_sku,
+		other_seller_sku=other_seller_sku,
+	)
+
+
 @pytest.fixture()
 async def delete_product_data(db_session: AsyncSession) -> DeleteProductData:
 	owner: Seller = SellerFactory.build()
