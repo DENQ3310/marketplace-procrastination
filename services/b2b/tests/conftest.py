@@ -62,7 +62,12 @@ async def db_session(
 		try:
 			yield session
 		finally:
-			await session.execute(text("TRUNCATE TABLE catalog.categories CASCADE"))
+			await session.execute(
+				text(
+					"TRUNCATE TABLE catalog.inventory_operations, "
+					"catalog.outbox_events, catalog.categories CASCADE"
+				)
+			)
 			await session.commit()
 
 
@@ -90,6 +95,7 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	from api.categories import router as category_router
 	from api.products import router as product_router
 	from api.invoice import router as invoice_router
+	from api.inventory import router as inventory_router
 	from api.public_catalog import router as public_catalog_router
 	from api.sku import router as sku_router
 	from core.config import settings as app_settings
@@ -116,6 +122,7 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	test_app.include_router(category_router, prefix="/api/v1")
 	test_app.include_router(product_router, prefix="/api/v1")
 	test_app.include_router(invoice_router, prefix="/api/v1")
+	test_app.include_router(inventory_router, prefix="/api/v1")
 	test_app.include_router(sku_router, prefix="/api/v1")
 	test_app.dependency_overrides[core_db.get_db] = override_get_db
 

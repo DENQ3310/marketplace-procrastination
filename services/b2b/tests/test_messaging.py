@@ -6,6 +6,7 @@ from aio_pika import Message
 from core import messaging
 from crud.outbox import (
 	build_b2c_product_deleted_payload,
+	build_b2c_sku_out_of_stock_payload,
 	build_moderation_product_event_payload,
 )
 
@@ -95,6 +96,26 @@ async def test_b2c_product_deleted_payload_contains_sku_ids() -> None:
 	}
 
 
+async def test_b2c_sku_out_of_stock_payload_matches_contract() -> None:
+	sku_id = uuid.uuid4()
+	product_id = uuid.uuid4()
+	idempotency_key = uuid.uuid4()
+
+	payload = build_b2c_sku_out_of_stock_payload(
+		sku_id,
+		product_id,
+		idempotency_key,
+	)
+
+	assert payload["event_type"] == "SKU_OUT_OF_STOCK"
+	assert payload["idempotency_key"] == str(idempotency_key)
+	assert payload["occurred_at"].endswith("Z")
+	assert payload["payload"] == {
+		"sku_id": str(sku_id),
+		"product_id": str(product_id),
+	}
+
+
 async def test_moderation_event_has_service_key_header(
 	monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -125,3 +146,29 @@ async def test_moderation_event_has_service_key_header(
 		"X-Service-Key": "test-moderation-service-key"
 	}
 	assert exchange.routing_key == "moderation.product.created"
+
+
+async def test_b2c_event_has_service_key_header(
+	monkeypatch: pytest.MonkeyPatch,
+) -> None:
+	exchange = FakeExchange()
+
+	async def fake_connect_robust(_url: str) -> FakeConnection:
+		return FakeConnection(exchange)
+
+	monkeypatch.setattr(messaging.aio_pika, "connect_robust", fake_connect_robust)
+	monkeypatch.setattr(messaging.settings, "B2C_SERVICE_KEY", "test-b2c-service-key")
+
+	await messaging.publish_message(
+		"b2c.sku.out_of_stock",
+		{
+			"event_type": "SKU_OUT_OF_STOCK",
+			"idempotency_key": "event-id",
+			"occurred_at": "2026-06-10T00:00:00Z",
+			"payload": {"sku_id": "sku-id", "product_id": "product-id"},
+		},
+	)
+
+	assert exchange.message is not None
+	assert exchange.message.headers == {"X-Service-Key": "test-b2c-service-key"}
+	assert exchange.routing_key == "b2c.sku.out_of_stock"

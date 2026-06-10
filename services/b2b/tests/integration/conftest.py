@@ -170,6 +170,40 @@ class CreateInvoiceData:
 	other_seller_sku: Sku
 
 
+@dataclass(frozen=True, slots=True)
+class InventoryData:
+	skus: list[Sku]
+
+
+@pytest.fixture()
+async def inventory_data(db_session: AsyncSession) -> InventoryData:
+	category = CategoryFactory.build()
+	product = ProductFactory.build(
+		category_id=category.id,
+		status=ProductStatusEnum.MODERATED,
+	)
+	db_session.add_all([category, product])
+	await db_session.flush()
+
+	skus = [
+		SkuFactory.build(
+			product_id=product.id,
+			active_quantity=10,
+			reserved_quantity=0,
+			stock_quantity=10,
+		),
+		SkuFactory.build(
+			product_id=product.id,
+			active_quantity=2,
+			reserved_quantity=0,
+			stock_quantity=2,
+		),
+	]
+	db_session.add_all(skus)
+	await db_session.commit()
+	return InventoryData(skus=skus)
+
+
 @pytest.fixture()
 async def create_invoice_data(db_session: AsyncSession) -> CreateInvoiceData:
 	owner: Seller = SellerFactory.build()

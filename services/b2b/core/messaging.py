@@ -18,6 +18,8 @@ async def publish_message(routing_key: str, payload: dict) -> None:
 	headers = {}
 	if routing_key.startswith("moderation.") and settings.MODERATION_SERVICE_KEY:
 		headers["X-Service-Key"] = settings.MODERATION_SERVICE_KEY
+	elif routing_key.startswith("b2c.") and settings.B2C_SERVICE_KEY:
+		headers["X-Service-Key"] = settings.B2C_SERVICE_KEY
 	connection = await aio_pika.connect_robust(_rabbitmq_url())
 	async with connection:
 		channel = await connection.channel()

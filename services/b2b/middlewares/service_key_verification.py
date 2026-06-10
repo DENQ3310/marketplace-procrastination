@@ -7,12 +7,13 @@ from fastapi.responses import JSONResponse
 
 SERVICE_KEY_PATH_PREFIX = "/api/v1/public"
 SERVICE_CATALOG_PATH = "/api/v1/products"
+INVENTORY_SERVICE_PATHS = {"/api/v1/reserve", "/api/v1/unreserve"}
 
 
 def is_service_catalog_request(request: Request) -> bool:
 	return request.url.path.startswith(SERVICE_KEY_PATH_PREFIX) or (
 		request.method == "GET" and request.url.path == SERVICE_CATALOG_PATH
-	)
+	) or request.url.path in INVENTORY_SERVICE_PATHS
 
 
 async def verify_service_key(request: Request, call_next: Callable) -> JSONResponse:

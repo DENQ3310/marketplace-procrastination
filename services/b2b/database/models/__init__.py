@@ -3,6 +3,7 @@ from database.models.catalog.base import Product, Category, ProductStatusEnum
 from database.models.catalog.inventory import Invoice, InvoiceItem
 from database.models.identity.identity import Seller, Session
 from database.models.outbox import OutboxEvent, OutboxEventStatus
+from database.models.inventory_operation import InventoryOperation
 
 __all__ = [
 	"Sku",
@@ -17,4 +18,5 @@ __all__ = [
 	"ProductStatusEnum",
 	"OutboxEvent",
 	"OutboxEventStatus",
+	"InventoryOperation",
 ]

@@ -24,6 +24,7 @@ class Sku(Base):
 	__tablename__ = "skus"
 	__table_args__ = (
 		CheckConstraint("active_quantity >= 0", name="chk_active_quantity_positive"),
+		CheckConstraint("reserved_quantity >= 0", name="chk_reserved_quantity_positive"),
 		{"schema": "catalog"},
 	)
 

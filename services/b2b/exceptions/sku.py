@@ -19,3 +19,11 @@ class SkuForbiddenError(SkuError):
 
 class SkuValidationError(SkuError):
 	"""Raised when SKU request data fails business validation."""
+
+
+class SkuInsufficientStockError(SkuError):
+	"""Raised when an inventory operation cannot be applied atomically."""
+
+
+class SkuIdempotencyConflictError(SkuError):
+	"""Raised when an idempotency key is reused with a different payload."""
