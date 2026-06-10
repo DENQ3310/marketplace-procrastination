@@ -51,6 +51,8 @@ async def _authenticate_bearer(request: Request) -> Optional[JSONResponse]:
 
 
 async def verify_token(request: Request, call_next: Callable) -> JSONResponse:
+	if request.method == "GET" and request.url.path == "/api/v1/products":
+		return await call_next(request)
 	if request.url.path not in PRIVATE_PATHS and not any(
 		request.url.path.startswith(prefix) for prefix in PRIVATE_PATHS_PREFIXES
 	):

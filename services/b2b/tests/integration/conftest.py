@@ -546,6 +546,7 @@ class PublicCatalogData:
 	visible_product: Product
 	visible_sku: Sku
 	hard_blocked_product: Product
+	deleted_product: Product
 	out_of_stock_product: Product
 	on_moderation_product: Product
 
@@ -568,6 +569,12 @@ async def public_catalog_data(db_session: AsyncSession) -> PublicCatalogData:
 		deleted=False,
 		slug=f"hard-blocked-{uuid.uuid4().hex[:8]}",
 	)
+	deleted_product = ProductFactory.build(
+		category_id=category.id,
+		status=ProductStatusEnum.MODERATED,
+		deleted=True,
+		slug=f"deleted-{uuid.uuid4().hex[:8]}",
+	)
 	out_of_stock_product = ProductFactory.build(
 		category_id=category.id,
 		status=ProductStatusEnum.MODERATED,
@@ -584,6 +591,7 @@ async def public_catalog_data(db_session: AsyncSession) -> PublicCatalogData:
 		[
 			visible_product,
 			hard_blocked_product,
+			deleted_product,
 			out_of_stock_product,
 			on_moderation_product,
 		]
@@ -600,17 +608,21 @@ async def public_catalog_data(db_session: AsyncSession) -> PublicCatalogData:
 		product_id=hard_blocked_product.id,
 		active_quantity=3,
 	)
+	deleted_sku = SkuFactory.build(product_id=deleted_product.id, active_quantity=4)
 	oos_sku = SkuFactory.build(product_id=out_of_stock_product.id, active_quantity=0)
 	moderating_sku = SkuFactory.build(
 		product_id=on_moderation_product.id, active_quantity=10
 	)
-	db_session.add_all([visible_sku, hard_blocked_sku, oos_sku, moderating_sku])
+	db_session.add_all(
+		[visible_sku, hard_blocked_sku, deleted_sku, oos_sku, moderating_sku]
+	)
 	await db_session.commit()
 
 	return PublicCatalogData(
 		visible_product=visible_product,
 		visible_sku=visible_sku,
 		hard_blocked_product=hard_blocked_product,
+		deleted_product=deleted_product,
 		out_of_stock_product=out_of_stock_product,
 		on_moderation_product=on_moderation_product,
 	)

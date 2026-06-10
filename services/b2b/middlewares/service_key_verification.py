@@ -6,10 +6,17 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 
 SERVICE_KEY_PATH_PREFIX = "/api/v1/public"
+SERVICE_CATALOG_PATH = "/api/v1/products"
+
+
+def is_service_catalog_request(request: Request) -> bool:
+	return request.url.path.startswith(SERVICE_KEY_PATH_PREFIX) or (
+		request.method == "GET" and request.url.path == SERVICE_CATALOG_PATH
+	)
 
 
 async def verify_service_key(request: Request, call_next: Callable) -> JSONResponse:
-	if not request.url.path.startswith(SERVICE_KEY_PATH_PREFIX):
+	if not is_service_catalog_request(request):
 		return await call_next(request)
 
 	service_key = request.headers.get("X-Service-Key")

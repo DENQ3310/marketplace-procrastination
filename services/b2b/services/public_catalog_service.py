@@ -95,6 +95,7 @@ async def list_public_catalog(
 	min_price: int | None,
 	max_price: int | None,
 	sort: PublicSort,
+	product_ids: list[UUID] | None = None,
 ) -> ProductPublicPaginatedResponse:
 	(
 		products,
@@ -111,6 +112,7 @@ async def list_public_catalog(
 		min_price,
 		max_price,
 		sort,
+		product_ids,
 	)
 
 	items = []

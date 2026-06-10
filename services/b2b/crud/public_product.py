@@ -30,12 +30,17 @@ async def list_visible_products(
 	min_price: int | None = None,
 	max_price: int | None = None,
 	sort: PublicSort = "created_desc",
+	product_ids: list[uuid.UUID] | None = None,
 ) -> tuple[list[Product], int]:
 	query = select(Product)
 	count_query = select(func.count(Product.id))
 
 	query = _apply_visibility(query)
 	count_query = _apply_visibility(count_query)
+
+	if product_ids is not None:
+		query = query.where(Product.id.in_(product_ids))
+		count_query = count_query.where(Product.id.in_(product_ids))
 
 	if category_id is not None:
 		query = query.where(Product.category_id == category_id)
@@ -152,6 +157,7 @@ async def load_public_catalog_list_page(
 	min_price: int | None = None,
 	max_price: int | None = None,
 	sort: PublicSort = "created_desc",
+	product_ids: list[uuid.UUID] | None = None,
 ) -> tuple[
 	list[Product], int, dict[uuid.UUID, list[Image]], dict[uuid.UUID, list[Sku]]
 ]:
@@ -165,6 +171,7 @@ async def load_public_catalog_list_page(
 		min_price,
 		max_price,
 		sort,
+		product_ids,
 	)
 	if not products:
 		return [], total, {}, {}
