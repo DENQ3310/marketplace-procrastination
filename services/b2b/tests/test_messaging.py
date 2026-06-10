@@ -4,7 +4,10 @@ import pytest
 from aio_pika import Message
 
 from core import messaging
-from crud.outbox import build_moderation_product_event_payload
+from crud.outbox import (
+	build_b2c_product_deleted_payload,
+	build_moderation_product_event_payload,
+)
 
 pytestmark = pytest.mark.asyncio
 
@@ -69,6 +72,26 @@ async def test_moderation_event_payload_matches_contract() -> None:
 	assert payload["payload"] == {
 		"product_id": str(product_id),
 		"seller_id": str(seller_id),
+	}
+
+
+async def test_b2c_product_deleted_payload_contains_sku_ids() -> None:
+	product_id = uuid.uuid4()
+	sku_ids = [uuid.uuid4(), uuid.uuid4()]
+	idempotency_key = uuid.uuid4()
+
+	payload = build_b2c_product_deleted_payload(
+		product_id,
+		sku_ids,
+		idempotency_key,
+	)
+
+	assert payload["event_type"] == "PRODUCT_DELETED"
+	assert payload["idempotency_key"] == str(idempotency_key)
+	assert payload["occurred_at"].endswith("Z")
+	assert payload["payload"] == {
+		"product_id": str(product_id),
+		"sku_ids": [str(sku_id) for sku_id in sku_ids],
 	}
 
 

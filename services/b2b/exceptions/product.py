@@ -15,3 +15,7 @@ class ProductNotOwnerError(ProductError):
 
 class ProductForbiddenError(ProductError):
 	"""Raised when product operation is not allowed (e.g. HARD_BLOCKED)."""
+
+
+class ProductAlreadyDeletedError(ProductError):
+	"""Raised when a product has already been soft-deleted."""

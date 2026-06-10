@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.db import get_db
 from exceptions.product import (
+	ProductAlreadyDeletedError,
 	ProductForbiddenError,
 	ProductNotFoundError,
 	ProductNotOwnerError,
@@ -119,4 +120,19 @@ async def delete_product(
 		raise HTTPException(
 			status_code=404,
 			detail={"code": "NOT_FOUND", "message": str(e)},
+		) from e
+	except ProductNotOwnerError as e:
+		raise HTTPException(
+			status_code=403,
+			detail={"code": "NOT_OWNER", "message": str(e)},
+		) from e
+	except ProductForbiddenError as e:
+		raise HTTPException(
+			status_code=403,
+			detail={"code": "FORBIDDEN", "message": str(e)},
+		) from e
+	except ProductAlreadyDeletedError as e:
+		raise HTTPException(
+			status_code=400,
+			detail={"code": "ALREADY_DELETED", "message": str(e)},
 		) from e

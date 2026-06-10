@@ -14,11 +14,14 @@ PublishFn = Callable[[str, dict], Awaitable[None]]
 MODERATION_EVENT_TYPES = {
 	"CREATED": "PRODUCT_CREATED",
 	"EDITED": "PRODUCT_EDITED",
+	"DELETED": "PRODUCT_DELETED",
 }
 MODERATION_ROUTING_KEYS = {
 	"CREATED": "moderation.product.created",
 	"EDITED": "moderation.product.edited",
+	"DELETED": "moderation.product.deleted",
 }
+B2C_PRODUCT_DELETED_ROUTING_KEY = "b2c.product.deleted"
 
 
 def build_moderation_product_event_payload(
@@ -40,7 +43,24 @@ def build_moderation_product_event_payload(
 	}
 
 
-async def enqueue_moderation_product_created(
+def build_b2c_product_deleted_payload(
+	product_id: UUID,
+	sku_ids: list[UUID],
+	idempotency_key: UUID,
+) -> dict:
+	occurred_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+	return {
+		"event_type": "PRODUCT_DELETED",
+		"idempotency_key": str(idempotency_key),
+		"occurred_at": occurred_at,
+		"payload": {
+			"product_id": str(product_id),
+			"sku_ids": [str(sku_id) for sku_id in sku_ids],
+		},
+	}
+
+
+async def enqueue_moderation_product_event(
 	db: AsyncSession,
 	product_id: UUID,
 	seller_id: UUID,
@@ -65,6 +85,37 @@ async def enqueue_moderation_product_created(
 	db.add(outbox_event)
 	await db.flush()
 	return outbox_event
+
+
+async def enqueue_product_deleted_events(
+	db: AsyncSession,
+	product_id: UUID,
+	seller_id: UUID,
+	sku_ids: list[UUID],
+) -> tuple[OutboxEvent, OutboxEvent]:
+	moderation_event = await enqueue_moderation_product_event(
+		db,
+		product_id=product_id,
+		seller_id=seller_id,
+		event="DELETED",
+	)
+
+	idempotency_key = uuid.uuid4()
+	b2c_payload = build_b2c_product_deleted_payload(
+		product_id=product_id,
+		sku_ids=sku_ids,
+		idempotency_key=idempotency_key,
+	)
+	b2c_event = OutboxEvent(
+		idempotency_key=idempotency_key,
+		event_type="PRODUCT_DELETED",
+		routing_key=B2C_PRODUCT_DELETED_ROUTING_KEY,
+		payload=b2c_payload,
+		status=OutboxEventStatus.PENDING,
+	)
+	db.add(b2c_event)
+	await db.flush()
+	return moderation_event, b2c_event
 
 
 async def fetch_pending_events(db: AsyncSession, limit: int = 50) -> list[OutboxEvent]:

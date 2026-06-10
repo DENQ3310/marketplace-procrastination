@@ -18,7 +18,7 @@ async def submit_for_moderation(
 ) -> None:
 	product.status = ProductStatusEnum.ON_MODERATION
 	db.add(product)
-	await outbox_crud.enqueue_moderation_product_created(
+	await outbox_crud.enqueue_moderation_product_event(
 		db,
 		product_id=product.id,
 		seller_id=product.seller_id,
@@ -63,7 +63,12 @@ async def add_product(
 
 
 async def get_seller_products(db: AsyncSession, seller_id: UUID) -> list[Product]:
-	result = await db.execute(select(Product).where(Product.seller_id == seller_id))
+	result = await db.execute(
+		select(Product).where(
+			Product.seller_id == seller_id,
+			Product.deleted.is_(False),
+		)
+	)
 	return list(result.scalars().all())
 
 
@@ -155,9 +160,19 @@ async def update_product(
 	return db_obj
 
 
-async def soft_delete_product(db: AsyncSession, db_obj: Product) -> Product:
-	db_obj.status = ProductStatusEnum.DELETED
+async def soft_delete_product(
+	db: AsyncSession,
+	db_obj: Product,
+	sku_ids: list[UUID],
+) -> Product:
+	db_obj.deleted = True
 	db.add(db_obj)
+	await outbox_crud.enqueue_product_deleted_events(
+		db,
+		product_id=db_obj.id,
+		seller_id=db_obj.seller_id,
+		sku_ids=sku_ids,
+	)
 	await db.commit()
 	await db.refresh(db_obj)
 	return db_obj

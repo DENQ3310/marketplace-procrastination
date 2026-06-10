@@ -86,7 +86,7 @@ make test
 ### CRUD
 
 - `crud/sku.py` - `create` (SKU, images, переход в `ON_MODERATION`, enqueue outbox)
-- `crud/outbox.py` - `enqueue_moderation_product_created`, `process_pending_batch`, `deliver_pending_event`
+- `crud/outbox.py` - `enqueue_moderation_product_event`, `process_pending_batch`, `deliver_pending_event`
 
 ### Core / инфраструктура
 

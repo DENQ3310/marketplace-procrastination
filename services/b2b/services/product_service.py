@@ -7,6 +7,7 @@ from crud import product as product_crud
 from crud import sku as sku_crud
 from database.models.catalog.base import Product, ProductStatusEnum
 from exceptions.product import (
+	ProductAlreadyDeletedError,
 	ProductForbiddenError,
 	ProductNotFoundError,
 	ProductNotOwnerError,
@@ -194,10 +195,17 @@ async def update_existing_product(
 async def remove_product(
 	db: AsyncSession, product_id: UUID, seller_id: UUID
 ) -> dict[str, str]:
-	product = await product_crud.get_product_by_id(db, product_id, seller_id)
-	if not product:
+	product = await product_crud.get_product_by_id_only(db, product_id, for_update=True)
+	if product is None:
 		raise ProductNotFoundError("Product not found")
+	if product.seller_id != seller_id:
+		raise ProductNotOwnerError("Product does not belong to the authenticated seller")
+	if product.status == ProductStatusEnum.HARD_BLOCKED:
+		raise ProductForbiddenError("Cannot delete hard-blocked product")
+	if product.deleted:
+		raise ProductAlreadyDeletedError("Product already deleted")
 
-	await product_crud.soft_delete_product(db, product)
+	skus = await sku_crud.get_by_product_id(db, product.id)
+	await product_crud.soft_delete_product(db, product, [sku.id for sku in skus])
 
-	return {"detail": "Product deleted successfully"}
+	return {"message": "Product deleted successfully"}

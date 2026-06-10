@@ -153,6 +153,52 @@ class EditProductData:
 	other_seller_sku: Sku
 
 
+@dataclass(frozen=True, slots=True)
+class DeleteProductData:
+	owner: Seller
+	other_seller: Seller
+	product: Product
+	skus: list[Sku]
+	other_seller_product: Product
+
+
+@pytest.fixture()
+async def delete_product_data(db_session: AsyncSession) -> DeleteProductData:
+	owner: Seller = SellerFactory.build()
+	other_seller: Seller = SellerFactory.build()
+	category = CategoryFactory.build()
+	db_session.add_all([owner, other_seller, category])
+	await db_session.flush()
+
+	product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=owner.id,
+		status=ProductStatusEnum.MODERATED,
+	)
+	other_seller_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=other_seller.id,
+		status=ProductStatusEnum.MODERATED,
+	)
+	db_session.add_all([product, other_seller_product])
+	await db_session.flush()
+
+	skus = [
+		SkuFactory.build(product_id=product.id),
+		SkuFactory.build(product_id=product.id),
+	]
+	db_session.add_all(skus)
+	await db_session.commit()
+
+	return DeleteProductData(
+		owner=owner,
+		other_seller=other_seller,
+		product=product,
+		skus=skus,
+		other_seller_product=other_seller_product,
+	)
+
+
 @pytest.fixture()
 async def hard_blocked_product(
 	db_session: AsyncSession,
