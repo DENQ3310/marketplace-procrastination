@@ -349,6 +349,7 @@ class ViewProductData:
 	owner: Seller
 	other_seller: Seller
 	category: Category
+	products_by_status: dict[ProductStatusEnum, Product]
 	moderated_product: Product
 	moderated_sku: Sku
 	blocked_product: Product
@@ -390,7 +391,34 @@ async def view_product_data(db_session: AsyncSession) -> ViewProductData:
 		seller_id=other_seller.id,
 		status=ProductStatusEnum.MODERATED,
 	)
-	db_session.add_all([moderated_product, blocked_product, other_seller_product])
+	created_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=owner.id,
+		status=ProductStatusEnum.CREATED,
+	)
+	on_moderation_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=owner.id,
+		status=ProductStatusEnum.ON_MODERATION,
+	)
+	hard_blocked_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=owner.id,
+		status=ProductStatusEnum.HARD_BLOCKED,
+		blocked_reason_id=uuid.uuid4(),
+		blocking_reason_title="Repeated policy violations",
+		moderator_comment="Contact support for details",
+	)
+	db_session.add_all(
+		[
+			moderated_product,
+			blocked_product,
+			created_product,
+			on_moderation_product,
+			hard_blocked_product,
+			other_seller_product,
+		]
+	)
 	await db_session.commit()
 
 	moderated_sku = SkuFactory.build(
@@ -444,6 +472,13 @@ async def view_product_data(db_session: AsyncSession) -> ViewProductData:
 		owner=owner,
 		other_seller=other_seller,
 		category=category,
+		products_by_status={
+			ProductStatusEnum.CREATED: created_product,
+			ProductStatusEnum.ON_MODERATION: on_moderation_product,
+			ProductStatusEnum.MODERATED: moderated_product,
+			ProductStatusEnum.BLOCKED: blocked_product,
+			ProductStatusEnum.HARD_BLOCKED: hard_blocked_product,
+		},
 		moderated_product=moderated_product,
 		moderated_sku=moderated_sku,
 		blocked_product=blocked_product,

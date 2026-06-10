@@ -27,7 +27,7 @@ async def build_sku_response(db: AsyncSession, sku: Sku) -> SkuResponse:
 		name=sku.name,
 		price=sku.price,
 		discount=sku.discount,
-		cost_price=sku.cost_price or None,
+		cost_price=sku.cost_price,
 		stock_quantity=sku.stock_quantity,
 		active_quantity=sku.active_quantity,
 		reserved_quantity=sku.reserved_quantity,

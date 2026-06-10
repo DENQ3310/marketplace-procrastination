@@ -25,6 +25,11 @@ make test
 
 - `test_get_product.py`
 
+Дополнительно `test_get_product_supports_all_five_statuses` проверяет доступность
+карточки в состояниях `CREATED`, `ON_MODERATION`, `MODERATED`, `BLOCKED` и
+`HARD_BLOCKED`. `test_get_product_preserves_zero_cost_price` защищает полный
+seller-payload от преобразования фактического `cost_price=0` в `null`.
+
 ## ADR
 
 **Вопрос:** откуда `GET /api/v1/products/{id}` берёт `blocking_reason` и `field_reports` для продавца?
@@ -46,6 +51,16 @@ make test
 - `database/alembic/versions/7bea7d8e6d06_add_blocking_reasons.py`
 - `schemas/product.py` - `ProductDetailResponse`, `BlockingReason`, `FieldReport`
 - `crud/product.py` - `get_product_characteristics`
-- `services/product_service.py` - `build_product_detail_response`, `is_product_blocked`
+- `services/product_service.py` - `build_product_detail_response`, `get_product_for_seller`
 - `api/products.py`
 - `tests/integration/test_get_product.py`
+
+## ADR: seller-view и service-to-service view
+
+Рассматривались единый endpoint с переключением ответа по auth-заголовку, два
+отдельных endpoint и общий permission-класс с динамической схемой ответа.
+Выбраны отдельные view: seller-view `GET /api/v1/products/{id}` и существующий
+service-to-service каталог `/api/v1/public/products*`. Это делает режим доступа
+явным в маршруте и модели ответа, поэтому код проще читать и тестировать.
+Главный критерий выбора - снижение риска утечки seller-only полей
+`cost_price`, `reserved_quantity`, `blocking_reason` и `field_reports` в B2C.
