@@ -4,23 +4,23 @@
 
 Редактирование карточки товара и SKU с повторной отправкой на модерацию при необходимости.
 
-**Повторная модерация:** если товар в статусе `MODERATED` или `BLOCKED`, после успешного изменения статус меняется на `ON_MODERATION`, в outbox пишется событие `EDITED` (та же схема payload, что у `CREATED` в US-B2B-02). Доставка - transactional outbox (`outbox_events`) + worker - RabbitMQ - сервис Moderation.
+**Повторная модерация:** если товар в статусе `MODERATED` или `BLOCKED`, после успешного изменения статус меняется на `ON_MODERATION`, в outbox пишется событие `PRODUCT_EDITED` в форме `{event_type, idempotency_key, occurred_at, payload}`. Доставка - transactional outbox (`outbox_events`) + worker - RabbitMQ - сервис Moderation.
 
 ### API
 
-- **`PUT /api/v1/products/{product_id}`**
+- **`PATCH /api/v1/products/{product_id}`**
   - **Auth**: Bearer JWT.
   - **Body**: `ProductUpdate (title, description, category_id, characteristics[])`
   - **Код 200**: `ProductResponse` с актуальным `status` (при re-moderation - `ON_MODERATION`).
   - **Категория и характеристики**: новая категория валидируется, переданный список характеристик атомарно заменяет старый.
   - **Коды ошибок**: `404` `NOT_FOUND` (товар не найден); `403` `NOT_OWNER` (чужой товар); `403` `FORBIDDEN` (товар `HARD_BLOCKED`).
 
-- **`PUT /api/v1/skus/{sku_id}`**
+- **`PATCH /api/v1/skus/{sku_id}`**
   - **Auth**: Bearer JWT.
   - **Body**: `SkuUpdate (name, price, discount, cost_price, article, characteristics[])`.
   - **Код 200**: `SkuResponse` (включая неизменённый `reserved_quantity`).
   - **Характеристики**: переданный список атомарно заменяет старые характеристики SKU.
-  - **Побочный эффект**: при `MODERATED`/`BLOCKED` у родительского товара - переход в `ON_MODERATION` + outbox-событие `EDITED`.
+  - **Побочный эффект**: при `MODERATED`/`BLOCKED` у родительского товара - переход в `ON_MODERATION` + outbox-событие `PRODUCT_EDITED`.
   - **Коды ошибок**: `404` `NOT_FOUND` (SKU не найден); `403` `NOT_OWNER` (SKU чужого продавца); `403` `FORBIDDEN` (родительский товар `HARD_BLOCKED`).
 ## Запуск
 

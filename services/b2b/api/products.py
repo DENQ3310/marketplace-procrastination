@@ -77,7 +77,7 @@ async def get_product_skus(
 		) from e
 
 
-@router.put("/{product_id}", response_model=ProductResponse)
+@router.patch("/{product_id}", response_model=ProductResponse)
 async def update_product(
 	request: Request,
 	product_id: UUID,

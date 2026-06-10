@@ -30,7 +30,7 @@ async def test_edit_moderated_product_returns_to_on_moderation(
 	data = edit_product_data
 	headers = await auth_headers(data.owner.id, db_session)
 
-	response = await client.put(
+	response = await client.patch(
 		f"/api/v1/products/{data.moderated_product.id}",
 		headers=headers,
 		json={"title": "Updated moderated title"},
@@ -60,7 +60,7 @@ async def test_edit_blocked_product_returns_to_on_moderation(
 	data = edit_product_data
 	headers = await auth_headers(data.owner.id, db_session)
 
-	response = await client.put(
+	response = await client.patch(
 		f"/api/v1/products/{data.blocked_product.id}",
 		headers=headers,
 		json={"description": "Fixed description after block"},
@@ -139,7 +139,7 @@ async def test_edit_hard_blocked_returns_403(
 	data = edit_product_data
 	headers = await auth_headers(data.owner.id, db_session)
 
-	product_response = await client.put(
+	product_response = await client.patch(
 		f"/api/v1/products/{data.hard_blocked_product.id}",
 		headers=headers,
 		json={"title": "Should not apply"},
@@ -148,7 +148,7 @@ async def test_edit_hard_blocked_returns_403(
 	assert product_response.json()["code"] == "FORBIDDEN"
 	assert set(product_response.json()) == {"code", "message"}
 
-	sku_response = await client.put(
+	sku_response = await client.patch(
 		f"/api/v1/skus/{data.hard_blocked_sku.id}",
 		headers=headers,
 		json={"name": "Should not apply"},
@@ -166,7 +166,7 @@ async def test_edit_others_product_returns_403(
 	data = edit_product_data
 	headers = await auth_headers(data.owner.id, db_session)
 
-	response = await client.put(
+	response = await client.patch(
 		f"/api/v1/products/{data.other_seller_product.id}",
 		headers=headers,
 		json={"title": "Stolen edit attempt"},
@@ -175,7 +175,7 @@ async def test_edit_others_product_returns_403(
 	assert response.json()["code"] == "NOT_OWNER"
 	assert set(response.json()) == {"code", "message"}
 
-	sku_response = await client.put(
+	sku_response = await client.patch(
 		f"/api/v1/skus/{data.other_seller_sku.id}",
 		headers=headers,
 		json={"name": "Stolen SKU edit"},
@@ -193,7 +193,7 @@ async def test_product_characteristics_replaced_on_edit(
 	data = edit_product_data
 	headers = await auth_headers(data.owner.id, db_session)
 
-	response = await client.put(
+	response = await client.patch(
 		f"/api/v1/products/{data.moderated_product.id}",
 		headers=headers,
 		json={
@@ -225,7 +225,7 @@ async def test_sku_characteristics_replaced_on_edit(
 	data = edit_product_data
 	headers = await auth_headers(data.owner.id, db_session)
 
-	response = await client.put(
+	response = await client.patch(
 		f"/api/v1/skus/{data.moderated_sku.id}",
 		headers=headers,
 		json={"characteristics": [{"name": "Размер", "value": "XL"}]},
@@ -244,7 +244,7 @@ async def test_edit_product_with_invalid_category_returns_400(
 	data = edit_product_data
 	headers = await auth_headers(data.owner.id, db_session)
 
-	response = await client.put(
+	response = await client.patch(
 		f"/api/v1/products/{data.moderated_product.id}",
 		headers=headers,
 		json={"category_id": str(uuid.uuid4())},
