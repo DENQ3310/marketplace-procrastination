@@ -1,7 +1,10 @@
+import uuid
+
 import pytest
 from aio_pika import Message
 
 from core import messaging
+from crud.outbox import build_moderation_product_event_payload
 
 pytestmark = pytest.mark.asyncio
 
@@ -42,6 +45,33 @@ class FakeConnection:
 		return FakeChannel(self.exchange)
 
 
+async def test_moderation_event_payload_matches_contract() -> None:
+	product_id = uuid.uuid4()
+	seller_id = uuid.uuid4()
+	idempotency_key = uuid.uuid4()
+
+	payload = build_moderation_product_event_payload(
+		product_id,
+		seller_id,
+		idempotency_key,
+		event="EDITED",
+	)
+
+	assert set(payload) == {
+		"event_type",
+		"idempotency_key",
+		"occurred_at",
+		"payload",
+	}
+	assert payload["event_type"] == "PRODUCT_EDITED"
+	assert payload["idempotency_key"] == str(idempotency_key)
+	assert payload["occurred_at"].endswith("Z")
+	assert payload["payload"] == {
+		"product_id": str(product_id),
+		"seller_id": str(seller_id),
+	}
+
+
 async def test_moderation_event_has_service_key_header(
 	monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -59,7 +89,12 @@ async def test_moderation_event_has_service_key_header(
 
 	await messaging.publish_message(
 		"moderation.product.created",
-		{"event": "CREATED"},
+		{
+			"event_type": "PRODUCT_CREATED",
+			"idempotency_key": "event-id",
+			"occurred_at": "2026-06-10T00:00:00Z",
+			"payload": {"product_id": "product-id", "seller_id": "seller-id"},
+		},
 	)
 
 	assert exchange.message is not None

@@ -18,7 +18,9 @@ from schemas.product import (
 	ProductSellerRead,
 	ProductUpdate,
 )
+from schemas.sku import SkuResponse
 from services import product_service
+from services import sku_service
 
 router = APIRouter(prefix="/products", tags=["B2B Products"])
 
@@ -52,6 +54,22 @@ async def get_product(
 	seller_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
 	try:
 		return await product_service.get_product_for_seller(db, product_id, seller_id)
+	except ProductNotFoundError as e:
+		raise HTTPException(
+			status_code=404,
+			detail={"code": "NOT_FOUND", "message": str(e)},
+		) from e
+
+
+@router.get("/{product_id}/skus", response_model=list[SkuResponse])
+async def get_product_skus(
+	request: Request,
+	product_id: UUID,
+	db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[SkuResponse]:
+	seller_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
+	try:
+		return await sku_service.get_skus_by_product_id(db, product_id, seller_id)
 	except ProductNotFoundError as e:
 		raise HTTPException(
 			status_code=404,

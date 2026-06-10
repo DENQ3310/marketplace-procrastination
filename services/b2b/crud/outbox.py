@@ -11,22 +11,32 @@ from database.models.outbox import OutboxEvent, OutboxEventStatus
 
 PublishFn = Callable[[str, dict], Awaitable[None]]
 
-MODERATION_PRODUCT_CREATED = "moderation.product.created"
+MODERATION_EVENT_TYPES = {
+	"CREATED": "PRODUCT_CREATED",
+	"EDITED": "PRODUCT_EDITED",
+}
+MODERATION_ROUTING_KEYS = {
+	"CREATED": "moderation.product.created",
+	"EDITED": "moderation.product.edited",
+}
 
 
-def build_moderation_product_created_payload(
+def build_moderation_product_event_payload(
 	product_id: UUID,
 	seller_id: UUID,
 	idempotency_key: UUID,
 	event: str = "CREATED",
 ) -> dict:
 	occurred_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+	event_type = MODERATION_EVENT_TYPES[event]
 	return {
+		"event_type": event_type,
 		"idempotency_key": str(idempotency_key),
-		"product_id": str(product_id),
-		"seller_id": str(seller_id),
-		"event": event,
-		"date": occurred_at,
+		"occurred_at": occurred_at,
+		"payload": {
+			"product_id": str(product_id),
+			"seller_id": str(seller_id),
+		},
 	}
 
 
@@ -37,7 +47,9 @@ async def enqueue_moderation_product_created(
 	event: str = "CREATED",
 ) -> OutboxEvent:
 	idempotency_key = uuid.uuid4()
-	payload = build_moderation_product_created_payload(
+	event_type = MODERATION_EVENT_TYPES[event]
+	routing_key = MODERATION_ROUTING_KEYS[event]
+	payload = build_moderation_product_event_payload(
 		product_id=product_id,
 		seller_id=seller_id,
 		idempotency_key=idempotency_key,
@@ -45,8 +57,8 @@ async def enqueue_moderation_product_created(
 	)
 	outbox_event = OutboxEvent(
 		idempotency_key=idempotency_key,
-		event_type=MODERATION_PRODUCT_CREATED,
-		routing_key=MODERATION_PRODUCT_CREATED,
+		event_type=event_type,
+		routing_key=routing_key,
 		payload=payload,
 		status=OutboxEventStatus.PENDING,
 	)

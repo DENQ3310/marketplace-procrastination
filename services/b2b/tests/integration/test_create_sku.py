@@ -20,7 +20,7 @@ async def _outbox_events_for_product(
 ) -> list[OutboxEvent]:
 	result = await db.execute(
 		select(OutboxEvent).where(
-			OutboxEvent.payload["product_id"].astext == str(product_id)
+			OutboxEvent.payload["payload"]["product_id"].astext == str(product_id)
 		)
 	)
 	return list(result.scalars().all())
@@ -72,11 +72,13 @@ async def test_first_sku_emits_created_event_to_moderation(
 
 	events = await _outbox_events_for_product(db_session, product.id)
 	assert len(events) == 1
-	assert events[0].payload["event"] == "CREATED"
-	assert events[0].payload["product_id"] == str(product.id)
-	assert events[0].payload["seller_id"] == str(product.seller_id)
+	assert events[0].event_type == "PRODUCT_CREATED"
+	assert events[0].routing_key == "moderation.product.created"
+	assert events[0].payload["event_type"] == "PRODUCT_CREATED"
+	assert events[0].payload["payload"]["product_id"] == str(product.id)
+	assert events[0].payload["payload"]["seller_id"] == str(product.seller_id)
 	assert uuid.UUID(events[0].payload["idempotency_key"]) == events[0].idempotency_key
-	assert events[0].payload["date"].endswith("Z")
+	assert events[0].payload["occurred_at"].endswith("Z")
 	assert events[0].status == OutboxEventStatus.PENDING
 
 
@@ -101,7 +103,7 @@ async def test_second_sku_no_state_change(
 	assert events == []
 
 
-async def test_subsequent_sku_on_moderated_product_no_state_change(
+async def test_subsequent_sku_on_moderated_product_returns_to_on_moderation(
 	client: AsyncClient,
 	edit_product_data: EditProductData,
 	db_session: AsyncSession,
@@ -116,13 +118,16 @@ async def test_subsequent_sku_on_moderated_product_no_state_change(
 		headers=headers,
 	)
 	assert product_response.status_code == 200
-	assert product_response.json()["status"] == "MODERATED"
+	assert product_response.json()["status"] == "ON_MODERATION"
 
 	events = await _outbox_events_for_product(db_session, product.id)
-	assert events == []
+	assert len(events) == 1
+	assert events[0].event_type == "PRODUCT_EDITED"
+	assert events[0].routing_key == "moderation.product.edited"
+	assert events[0].payload["event_type"] == "PRODUCT_EDITED"
 
 
-async def test_subsequent_sku_on_blocked_product_no_state_change(
+async def test_subsequent_sku_on_blocked_product_returns_to_on_moderation(
 	client: AsyncClient,
 	blocked_product: CategoryWithProductsData,
 	db_session: AsyncSession,
@@ -137,10 +142,12 @@ async def test_subsequent_sku_on_blocked_product_no_state_change(
 		headers=headers,
 	)
 	assert product_response.status_code == 200
-	assert product_response.json()["status"] == "BLOCKED"
+	assert product_response.json()["status"] == "ON_MODERATION"
 
 	events = await _outbox_events_for_product(db_session, product.id)
-	assert events == []
+	assert len(events) == 1
+	assert events[0].event_type == "PRODUCT_EDITED"
+	assert events[0].payload["event_type"] == "PRODUCT_EDITED"
 
 
 async def test_add_sku_to_hard_blocked_returns_403(

@@ -93,6 +93,7 @@ async def attach_sku_image_endpoint(
 
 
 @router.put("/{sku_id}", response_model=SkuResponse)
+@router.patch("/{sku_id}", response_model=SkuResponse)
 async def update_sku_endpoint(
 	request: Request,
 	sku_id: UUID,

@@ -16,7 +16,7 @@ async def _outbox_events_for_product(
 ) -> list[OutboxEvent]:
 	result = await db.execute(
 		select(OutboxEvent).where(
-			OutboxEvent.payload["product_id"].astext == str(product_id)
+			OutboxEvent.payload["payload"]["product_id"].astext == str(product_id)
 		)
 	)
 	return list(result.scalars().all())
@@ -42,9 +42,12 @@ async def test_edit_moderated_product_returns_to_on_moderation(
 
 	events = await _outbox_events_for_product(db_session, data.moderated_product.id)
 	assert len(events) == 1
-	assert events[0].payload["event"] == "EDITED"
-	assert events[0].payload["product_id"] == str(data.moderated_product.id)
-	assert events[0].payload["seller_id"] == str(data.owner.id)
+	assert events[0].event_type == "PRODUCT_EDITED"
+	assert events[0].payload["event_type"] == "PRODUCT_EDITED"
+	assert events[0].payload["payload"]["product_id"] == str(
+		data.moderated_product.id
+	)
+	assert events[0].payload["payload"]["seller_id"] == str(data.owner.id)
 	assert uuid.UUID(events[0].payload["idempotency_key"]) == events[0].idempotency_key
 	assert events[0].status == OutboxEventStatus.PENDING
 
@@ -67,8 +70,8 @@ async def test_edit_blocked_product_returns_to_on_moderation(
 
 	events = await _outbox_events_for_product(db_session, data.blocked_product.id)
 	assert len(events) == 1
-	assert events[0].payload["event"] == "EDITED"
-	assert events[0].payload["seller_id"] == str(data.owner.id)
+	assert events[0].payload["event_type"] == "PRODUCT_EDITED"
+	assert events[0].payload["payload"]["seller_id"] == str(data.owner.id)
 	assert events[0].status == OutboxEventStatus.PENDING
 
 
@@ -82,7 +85,7 @@ async def test_reserves_preserved_after_sku_edit(
 	initial_reserved = data.reserved_sku.reserved_quantity
 	assert initial_reserved == 5
 
-	response = await client.put(
+	response = await client.patch(
 		f"/api/v1/skus/{data.reserved_sku.id}",
 		headers=headers,
 		json={
@@ -108,7 +111,24 @@ async def test_reserves_preserved_after_sku_edit(
 
 	events = await _outbox_events_for_product(db_session, data.moderated_product.id)
 	assert len(events) == 1
-	assert events[0].payload["event"] == "EDITED"
+	assert events[0].payload["event_type"] == "PRODUCT_EDITED"
+
+
+async def test_nested_product_skus_route_returns_owned_skus(
+	client: AsyncClient,
+	edit_product_data: EditProductData,
+	db_session: AsyncSession,
+) -> None:
+	data = edit_product_data
+	headers = await auth_headers(data.owner.id, db_session)
+
+	response = await client.get(
+		f"/api/v1/products/{data.moderated_product.id}/skus",
+		headers=headers,
+	)
+
+	assert response.status_code == 200
+	assert {item["id"] for item in response.json()} == {str(data.moderated_sku.id)}
 
 
 async def test_edit_hard_blocked_returns_403(

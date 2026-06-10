@@ -90,6 +90,11 @@ async def create_sku(db: AsyncSession, data: SkuCreate, seller_id: UUID) -> SkuR
 	moderation_event = None
 	if is_first_sku and product.status == ProductStatusEnum.CREATED:
 		moderation_event = "CREATED"
+	elif product.status in (
+		ProductStatusEnum.MODERATED,
+		ProductStatusEnum.BLOCKED,
+	):
+		moderation_event = "EDITED"
 
 	if moderation_event == "CREATED" and not sku_images:
 		raise SkuValidationError("at least one image is required for the first SKU")

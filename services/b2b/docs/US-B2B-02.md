@@ -2,8 +2,18 @@
 
 ## Что сделано
 
-Добавление варианта товара (SKU) и отправка товара на модерацию при первом SKU.
-Доставка событий: transactional outbox (`outbox_events`) + фоновый worker (`OUTBOX_WORKER_ENABLED`), публикация в RabbitMQ (`core/messaging`). Сообщение передаёт `X-Service-Key` в AMQP headers, а payload содержит уникальный `idempotency_key`. Повторный SKU у товара, у которого уже есть варианты, не меняет статус и не создаёт событие в outbox. Строка товара блокируется через `SELECT FOR UPDATE`, поэтому два параллельных запроса не могут одновременно определить себя как первый SKU.
+Добавление варианта товара (SKU) и отправка товара на модерацию. Первый SKU
+переводит `CREATED` товар в `ON_MODERATION` и создаёт `PRODUCT_CREATED`.
+Добавление SKU к `MODERATED` или `BLOCKED` товару возвращает его в
+`ON_MODERATION` и создаёт `PRODUCT_EDITED`. Дополнительный SKU у уже
+`ON_MODERATION` товара не создаёт повторного события.
+
+Доставка событий: transactional outbox (`outbox_events`) + фоновый worker
+(`OUTBOX_WORKER_ENABLED`), публикация в RabbitMQ (`core/messaging`). Сообщение
+передаёт `X-Service-Key` в AMQP headers и имеет контрактную форму
+`{event_type, idempotency_key, occurred_at, payload}`. Строка товара блокируется
+через `SELECT FOR UPDATE`, поэтому два параллельных запроса не могут
+одновременно определить себя как первый SKU.
 
 ### API
 
@@ -16,6 +26,14 @@
   - **Body**: `ImageAttachRequest (url* string, image_id, ordering)`.
   - **Код 201**: `SkuImageResponse`.
   - **Коды ошибок**: `404` `NOT_FOUND`; `403` `NOT_OWNER` / `FORBIDDEN`; `400` `INVALID_REQUEST` или `VALIDATION_ERROR`.
+
+- **`PATCH /api/v1/skus/{sku_id}`**
+  - Контрактный маршрут частичного обновления SKU. `PUT` сохранён для
+    совместимости с US-B2B-03.
+
+- **`GET /api/v1/products/{product_id}/skus`**
+  - Контрактный маршрут списка SKU товара. Старый `/skus/product/{product_id}`
+    сохранён для обратной совместимости.
 
 ## Запуск
 
@@ -34,6 +52,8 @@ make test
   - `test_first_sku_transitions_product_to_on_moderation` - первый SKU с `images[]` переводит товар в `ON_MODERATION`;
   - `test_first_sku_emits_created_event_to_moderation` - событие `CREATED` записывается в `outbox_events` со статусом `PENDING`;
   - `test_second_sku_no_state_change` - второй SKU не меняет статус `ON_MODERATION`;
+  - `test_subsequent_sku_on_moderated_product_returns_to_on_moderation` - новый SKU возвращает `MODERATED` товар на модерацию;
+  - `test_subsequent_sku_on_blocked_product_returns_to_on_moderation` - новый SKU возвращает `BLOCKED` товар на модерацию;
   - `test_add_sku_to_hard_blocked_returns_403` - попытка добавить SKU к HARD_BLOCKED;
   - `test_missing_image_returns_400` - первый SKU без изображений;
   - `test_missing_image_url_on_attach_returns_400` - `POST /skus/{id}/images` без `url`
