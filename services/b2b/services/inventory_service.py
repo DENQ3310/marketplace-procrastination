@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from crud import inventory as inventory_crud
 from crud import outbox as outbox_crud
 from database.models.catalog.variants import Sku
+from database.models.inventory_operation import InventoryOperation
 from exceptions.sku import (
 	SkuIdempotencyConflictError,
 	SkuInsufficientStockError,
@@ -31,20 +32,41 @@ def _normalize_items(items: list[InventoryItemRequest]) -> list[dict]:
 def _build_response(
 	request: InventoryRequest,
 	operation: str,
-	skus: list[Sku],
+	items: list[dict],
 ) -> InventoryResponse:
 	return InventoryResponse(
 		idempotency_key=request.idempotency_key,
 		operation=operation,
 		items=[
 			InventoryItemResponse(
-				sku_id=sku.id,
-				active_quantity=sku.active_quantity,
-				reserved_quantity=sku.reserved_quantity,
+				sku_id=UUID(item["sku_id"]),
+				active_quantity=item["active_quantity"],
+				reserved_quantity=item["reserved_quantity"],
 			)
-			for sku in skus
+			for item in items
 		],
 	)
+
+
+def _snapshot_skus(skus: list[Sku]) -> list[dict]:
+	return [
+		{
+			"sku_id": str(sku.id),
+			"active_quantity": sku.active_quantity,
+			"reserved_quantity": sku.reserved_quantity,
+		}
+		for sku in skus
+	]
+
+
+def _build_idempotent_response(
+	request: InventoryRequest,
+	operation: str,
+	existing: InventoryOperation,
+) -> InventoryResponse | None:
+	if existing.result is None:
+		return None
+	return _build_response(request, operation, existing.result)
 
 
 async def _apply_inventory_operation(
@@ -61,6 +83,10 @@ async def _apply_inventory_operation(
 		raise SkuIdempotencyConflictError(
 			"idempotency_key was already used with a different payload"
 		)
+	if existing is not None:
+		response = _build_idempotent_response(request, operation, existing)
+		if response is not None:
+			return response
 
 	sku_ids = [UUID(item["sku_id"]) for item in normalized_items]
 	skus = await inventory_crud.lock_skus(db, sku_ids)
@@ -77,7 +103,7 @@ async def _apply_inventory_operation(
 			raise SkuIdempotencyConflictError(
 				"idempotency_key was already used with a different payload"
 			)
-		return _build_response(request, operation, skus)
+		return _build_response(request, operation, _snapshot_skus(skus))
 
 	quantities = {
 		UUID(item["sku_id"]): int(item["quantity"]) for item in normalized_items
@@ -106,16 +132,16 @@ async def _apply_inventory_operation(
 			sku.reserved_quantity -= quantity
 		db.add(sku)
 
+	result = _snapshot_skus(skus)
 	inventory_crud.add_operation(
 		db,
 		operation,
 		request.idempotency_key,
 		normalized_items,
+		result,
 	)
 	await db.commit()
-	for sku in skus:
-		await db.refresh(sku)
-	return _build_response(request, operation, skus)
+	return _build_response(request, operation, result)
 
 
 async def reserve(db: AsyncSession, request: InventoryRequest) -> InventoryResponse:

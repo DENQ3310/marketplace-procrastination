@@ -43,11 +43,13 @@ def add_operation(
 	operation: str,
 	idempotency_key: UUID,
 	items: list[dict],
+	result: list[dict],
 ) -> InventoryOperation:
 	db_operation = InventoryOperation(
 		operation=operation,
 		idempotency_key=idempotency_key,
 		items=items,
+		result=result,
 	)
 	db.add(db_operation)
 	return db_operation
