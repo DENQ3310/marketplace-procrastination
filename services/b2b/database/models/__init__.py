@@ -5,6 +5,7 @@ from database.models.identity.identity import Seller, Session
 from database.models.outbox import OutboxEvent, OutboxEventStatus
 from database.models.inventory_operation import InventoryOperation
 from database.models.moderation_event import ModerationProcessedEvent
+from database.models.fulfilled_order import FulfilledOrder
 
 __all__ = [
 	"Sku",
@@ -21,4 +22,5 @@ __all__ = [
 	"OutboxEventStatus",
 	"InventoryOperation",
 	"ModerationProcessedEvent",
+	"FulfilledOrder",
 ]

@@ -7,7 +7,11 @@ from fastapi.responses import JSONResponse
 
 SERVICE_KEY_PATH_PREFIX = "/api/v1/public"
 SERVICE_CATALOG_PATH = "/api/v1/products"
-INVENTORY_SERVICE_PATHS = {"/api/v1/reserve", "/api/v1/unreserve"}
+INVENTORY_SERVICE_PATHS = {
+	"/api/v1/reserve",
+	"/api/v1/unreserve",
+	"/api/v1/fulfill",
+}
 MODERATION_SERVICE_PATH = "/api/v1/events/moderation"
 
 
