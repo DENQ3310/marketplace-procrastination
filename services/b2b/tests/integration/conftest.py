@@ -175,6 +175,57 @@ class InventoryData:
 	skus: list[Sku]
 
 
+@dataclass(frozen=True, slots=True)
+class ModerationEventData:
+	seller: Seller
+	product: Product
+	sku: Sku
+	blocked_product: Product
+
+
+MODERATION_SERVICE_KEY_HEADERS = {"X-Service-Key": "test-moderation-service-key"}
+
+
+@pytest.fixture()
+async def moderation_event_data(db_session: AsyncSession) -> ModerationEventData:
+	seller = SellerFactory.build()
+	category = CategoryFactory.build()
+	db_session.add_all([seller, category])
+	await db_session.flush()
+
+	product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=seller.id,
+		status=ProductStatusEnum.ON_MODERATION,
+	)
+	blocked_product = ProductFactory.build(
+		category_id=category.id,
+		seller_id=seller.id,
+		status=ProductStatusEnum.BLOCKED,
+		blocked_reason_id=uuid.uuid4(),
+		blocking_reason_title="Old blocking reason",
+		moderator_comment="Old moderator comment",
+		field_reports=[
+			{
+				"field_name": "description",
+				"comment": "Old field report",
+			}
+		],
+	)
+	db_session.add_all([product, blocked_product])
+	await db_session.flush()
+
+	sku = SkuFactory.build(product_id=product.id)
+	db_session.add(sku)
+	await db_session.commit()
+	return ModerationEventData(
+		seller=seller,
+		product=product,
+		sku=sku,
+		blocked_product=blocked_product,
+	)
+
+
 @pytest.fixture()
 async def inventory_data(db_session: AsyncSession) -> InventoryData:
 	category = CategoryFactory.build()

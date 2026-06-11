@@ -65,6 +65,7 @@ async def db_session(
 			await session.execute(
 				text(
 					"TRUNCATE TABLE catalog.inventory_operations, "
+					"catalog.moderation_processed_events, "
 					"catalog.outbox_events, catalog.categories CASCADE"
 				)
 			)
@@ -96,6 +97,7 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	from api.products import router as product_router
 	from api.invoice import router as invoice_router
 	from api.inventory import router as inventory_router
+	from api.moderation_events import router as moderation_events_router
 	from api.public_catalog import router as public_catalog_router
 	from api.sku import router as sku_router
 	from core.config import settings as app_settings
@@ -103,6 +105,7 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	from middlewares.token_verification import verify_token
 
 	app_settings.B2C_SERVICE_KEY = "test-b2c-service-key"
+	app_settings.MODERATION_SERVICE_KEY = "test-moderation-service-key"
 
 	test_app = FastAPI(debug=False)
 	test_app.add_exception_handler(HTTPException, http_exception_handler)
@@ -123,6 +126,7 @@ def app(session_factory: async_sessionmaker[AsyncSession]) -> FastAPI:
 	test_app.include_router(product_router, prefix="/api/v1")
 	test_app.include_router(invoice_router, prefix="/api/v1")
 	test_app.include_router(inventory_router, prefix="/api/v1")
+	test_app.include_router(moderation_events_router, prefix="/api/v1")
 	test_app.include_router(sku_router, prefix="/api/v1")
 	test_app.dependency_overrides[core_db.get_db] = override_get_db
 

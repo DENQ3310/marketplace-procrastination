@@ -6,6 +6,7 @@ from aio_pika import Message
 from core import messaging
 from crud.outbox import (
 	build_b2c_product_deleted_payload,
+	build_b2c_product_blocked_payload,
 	build_b2c_sku_out_of_stock_payload,
 	build_moderation_product_event_payload,
 )
@@ -113,6 +114,28 @@ async def test_b2c_sku_out_of_stock_payload_matches_contract() -> None:
 	assert payload["payload"] == {
 		"sku_id": str(sku_id),
 		"product_id": str(product_id),
+	}
+
+
+async def test_b2c_product_blocked_payload_matches_contract() -> None:
+	product_id = uuid.uuid4()
+	sku_ids = [uuid.uuid4(), uuid.uuid4()]
+	idempotency_key = uuid.uuid4()
+
+	payload = build_b2c_product_blocked_payload(
+		product_id,
+		sku_ids,
+		True,
+		idempotency_key,
+	)
+
+	assert payload["event_type"] == "PRODUCT_BLOCKED"
+	assert payload["idempotency_key"] == str(idempotency_key)
+	assert payload["occurred_at"].endswith("Z")
+	assert payload["payload"] == {
+		"product_id": str(product_id),
+		"sku_ids": [str(sku_id) for sku_id in sku_ids],
+		"hard_block": True,
 	}
 
 

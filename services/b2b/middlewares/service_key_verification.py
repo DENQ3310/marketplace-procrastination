@@ -8,20 +8,29 @@ from fastapi.responses import JSONResponse
 SERVICE_KEY_PATH_PREFIX = "/api/v1/public"
 SERVICE_CATALOG_PATH = "/api/v1/products"
 INVENTORY_SERVICE_PATHS = {"/api/v1/reserve", "/api/v1/unreserve"}
+MODERATION_SERVICE_PATH = "/api/v1/events/moderation"
 
 
-def is_service_catalog_request(request: Request) -> bool:
+def is_service_request(request: Request) -> bool:
 	return request.url.path.startswith(SERVICE_KEY_PATH_PREFIX) or (
 		request.method == "GET" and request.url.path == SERVICE_CATALOG_PATH
-	) or request.url.path in INVENTORY_SERVICE_PATHS
+	) or request.url.path in INVENTORY_SERVICE_PATHS or (
+		request.url.path == MODERATION_SERVICE_PATH
+	)
+
+
+def expected_service_key(request: Request) -> str:
+	if request.url.path == MODERATION_SERVICE_PATH:
+		return settings.MODERATION_SERVICE_KEY
+	return settings.B2C_SERVICE_KEY
 
 
 async def verify_service_key(request: Request, call_next: Callable) -> JSONResponse:
-	if not is_service_catalog_request(request):
+	if not is_service_request(request):
 		return await call_next(request)
 
 	service_key = request.headers.get("X-Service-Key")
-	expected = settings.B2C_SERVICE_KEY
+	expected = expected_service_key(request)
 	if (
 		not service_key
 		or not expected

@@ -4,6 +4,7 @@ from database.models.catalog.inventory import Invoice, InvoiceItem
 from database.models.identity.identity import Seller, Session
 from database.models.outbox import OutboxEvent, OutboxEventStatus
 from database.models.inventory_operation import InventoryOperation
+from database.models.moderation_event import ModerationProcessedEvent
 
 __all__ = [
 	"Sku",
@@ -19,4 +20,5 @@ __all__ = [
 	"OutboxEvent",
 	"OutboxEventStatus",
 	"InventoryOperation",
+	"ModerationProcessedEvent",
 ]
