@@ -35,11 +35,15 @@ class ProductUpdate(BaseModel):
 
 class ProductSellerRead(BaseModel):
 	id: UUID
+	seller_id: UUID
 	title: str
 	slug: str
 	description: str | None
 	status: ProductStatusEnum
 	category_id: UUID
+	deleted: bool
+	skus_count: int
+	total_active_quantity: int
 	created_at: datetime
 	updated_at: datetime
 

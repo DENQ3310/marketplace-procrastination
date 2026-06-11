@@ -20,6 +20,7 @@ from schemas.product import (
 	ProductDetailResponse,
 	ProductImageResponse,
 	ProductResponse,
+	ProductSellerRead,
 	ProductUpdate,
 )
 from services import category_service
@@ -167,8 +168,30 @@ async def get_product_for_seller(
 	return await build_product_detail_response(db, product)
 
 
-async def get_all_seller_products(db: AsyncSession, seller_id: UUID) -> list[Product]:
-	return await product_crud.get_seller_products(db, seller_id)
+async def get_all_seller_products(
+	db: AsyncSession,
+	seller_id: UUID,
+	status: ProductStatusEnum | None = None,
+	search: str | None = None,
+) -> list[ProductSellerRead]:
+	rows = await product_crud.get_seller_products(db, seller_id, status, search)
+	return [
+		ProductSellerRead(
+			id=product.id,
+			seller_id=product.seller_id,
+			title=product.title,
+			slug=product.slug,
+			description=product.description,
+			status=product.status,
+			category_id=product.category_id,
+			deleted=product.deleted,
+			skus_count=skus_count,
+			total_active_quantity=total_active_quantity,
+			created_at=product.created_at,
+			updated_at=product.updated_at,
+		)
+		for product, skus_count, total_active_quantity in rows
+	]
 
 
 async def update_existing_product(

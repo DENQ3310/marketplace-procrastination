@@ -1,11 +1,13 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.db import get_db
+from database.models.catalog.base import ProductStatusEnum
 from exceptions.product import ProductNotFoundError
+from schemas.product import ProductSellerRead
 from schemas.public_catalog import (
 	ProductPublicPaginatedResponse,
 	ProductPublicResponse,
@@ -13,6 +15,7 @@ from schemas.public_catalog import (
 	PublicSort,
 )
 from services import public_catalog_service
+from services import product_service
 
 router = APIRouter(tags=["Public Catalog"])
 
@@ -36,26 +39,52 @@ def _parse_product_ids(raw_ids: list[str] | None) -> list[UUID] | None:
 		) from exc
 
 
-@router.get("/products", response_model=ProductPublicPaginatedResponse)
+def _parse_seller_id(raw_seller_id: str | None) -> UUID | None:
+	if raw_seller_id is None:
+		return None
+	try:
+		return UUID(raw_seller_id)
+	except ValueError as exc:
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail={"code": "INVALID_SELLER_ID", "message": "seller_id must be a UUID"},
+		) from exc
+
+
+@router.get(
+	"/products",
+	response_model=ProductPublicPaginatedResponse | list[ProductSellerRead],
+)
 async def list_products_for_b2c(
+	request: Request,
 	db: Annotated[AsyncSession, Depends(get_db)],
 	ids: Annotated[list[str] | None, Query()] = None,
 	limit: Annotated[int, Query(ge=1, le=100)] = 20,
 	offset: Annotated[int, Query(ge=0)] = 0,
 	category_id: UUID | None = None,
 	search: str | None = None,
-	seller_id: UUID | None = None,
+	seller_id: str | None = None,
 	min_price: Annotated[int | None, Query(ge=0)] = None,
 	max_price: Annotated[int | None, Query(ge=0)] = None,
 	sort: Annotated[PublicSort, Query()] = "created_desc",
-) -> ProductPublicPaginatedResponse:
+	product_status: Annotated[
+		ProductStatusEnum | None, Query(alias="status")
+	] = None,
+) -> ProductPublicPaginatedResponse | list[ProductSellerRead]:
+	if seller_user_id := getattr(request.state, "user_id", None):
+		return await product_service.get_all_seller_products(
+			db,
+			UUID(str(seller_user_id)),
+			product_status,
+			search,
+		)
 	return await public_catalog_service.list_public_catalog(
 		db,
 		limit,
 		offset,
 		category_id,
 		search,
-		seller_id,
+		_parse_seller_id(seller_id),
 		min_price,
 		max_price,
 		sort,

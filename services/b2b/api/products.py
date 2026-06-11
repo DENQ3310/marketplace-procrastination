@@ -2,10 +2,11 @@ import uuid
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.db import get_db
+from database.models.catalog.base import ProductStatusEnum
 from exceptions.product import (
 	ProductAlreadyDeletedError,
 	ProductForbiddenError,
@@ -40,10 +41,15 @@ async def create_product(
 async def get_my_products(
 	request: Request,
 	db: Annotated[AsyncSession, Depends(get_db)],
+	product_status: Annotated[
+		ProductStatusEnum | None, Query(alias="status")
+	] = None,
+	search: str | None = None,
 ) -> list[ProductSellerRead]:
 	seller_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
-	products = await product_service.get_all_seller_products(db, seller_id)
-	return [ProductSellerRead.model_validate(p) for p in products]
+	return await product_service.get_all_seller_products(
+		db, seller_id, product_status, search
+	)
 
 
 @router.get("/{product_id}", response_model=ProductDetailResponse)

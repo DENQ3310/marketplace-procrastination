@@ -6,8 +6,9 @@ from database.models.catalog.variants import (
 	Characteristic,
 	Image,
 	ImageEntityTypeEnum,
+	Sku,
 )
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -62,14 +63,40 @@ async def add_product(
 	return product, product_images, product_characteristics
 
 
-async def get_seller_products(db: AsyncSession, seller_id: UUID) -> list[Product]:
-	result = await db.execute(
-		select(Product).where(
-			Product.seller_id == seller_id,
-			Product.deleted.is_(False),
+async def get_seller_products(
+	db: AsyncSession,
+	seller_id: UUID,
+	status: ProductStatusEnum | None = None,
+	search: str | None = None,
+) -> list[tuple[Product, int, int]]:
+	sku_aggregates = (
+		select(
+			Sku.product_id.label("product_id"),
+			func.count(Sku.id).label("skus_count"),
+			func.sum(Sku.active_quantity).label("total_active_quantity"),
 		)
+		.group_by(Sku.product_id)
+		.subquery()
 	)
-	return list(result.scalars().all())
+	query = (
+		select(
+			Product,
+			func.coalesce(sku_aggregates.c.skus_count, 0),
+			func.coalesce(sku_aggregates.c.total_active_quantity, 0),
+		)
+		.outerjoin(sku_aggregates, Product.id == sku_aggregates.c.product_id)
+		.where(Product.seller_id == seller_id)
+		.order_by(Product.created_at.desc())
+	)
+	if status is not None:
+		query = query.where(Product.status == status)
+	if search:
+		escaped = search.strip().replace("/", "//").replace("%", "/%").replace("_", "/_")
+		if escaped:
+			query = query.where(Product.title.ilike(f"%{escaped}%", escape="/"))
+
+	result = await db.execute(query)
+	return [(product, int(count), int(total)) for product, count, total in result.all()]
 
 
 async def get_product_by_id(

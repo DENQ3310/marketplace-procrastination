@@ -104,7 +104,7 @@ async def test_delete_already_deleted_returns_400(
 	assert len(await _events_for_product(db_session, delete_product_data.product.id)) == 2
 
 
-async def test_deleted_product_not_in_seller_list(
+async def test_deleted_product_visible_in_seller_list(
 	client: AsyncClient,
 	delete_product_data: DeleteProductData,
 	db_session: AsyncSession,
@@ -115,9 +115,12 @@ async def test_deleted_product_not_in_seller_list(
 	response = await client.get("/api/v1/products/", headers=headers)
 
 	assert response.status_code == 200
-	assert str(delete_product_data.product.id) not in {
-		product["id"] for product in response.json()
-	}
+	deleted = next(
+		product
+		for product in response.json()
+		if product["id"] == str(delete_product_data.product.id)
+	)
+	assert deleted["deleted"] is True
 
 
 async def test_delete_others_product_returns_403(
