@@ -1,5 +1,6 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.exc import OperationalError
 
 from tests.integration.catalog.conftest import (
 	CategoriesTreeData,
@@ -177,3 +178,27 @@ async def test_products_list_filters_only_visible_products(
 	assert str(visibility_products.visible_product.id) in ids
 	assert str(visibility_products.hidden_by_status_product.id) not in ids
 	assert str(visibility_products.hidden_by_stock_product.id) not in ids
+
+
+async def test_b2b_unavailable_returns_502(
+	client: AsyncClient,
+	category_with_products: CategoryWithProductsData,
+	monkeypatch: pytest.MonkeyPatch,
+) -> None:
+	async def _raise_unavailable(*args, **kwargs):
+		raise OperationalError("SELECT 1", {}, Exception("connection refused"))
+
+	monkeypatch.setattr(
+		"services.product_service.product_crud.get_products_list",
+		_raise_unavailable,
+	)
+
+	response = await client.get(
+		"/api/v1/products",
+		params={"category_id": str(category_with_products.category.id)},
+	)
+
+	assert response.status_code == 502
+	body = response.json()
+	assert body["code"] == "B2B_UNAVAILABLE"
+	assert "message" in body
