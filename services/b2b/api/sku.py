@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated, List
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -141,21 +141,4 @@ async def get_sku_endpoint(
 		raise HTTPException(
 			status_code=403,
 			detail={"code": "NOT_OWNER", "message": str(e)},
-		) from e
-
-
-@router.get("/product/{product_id}", response_model=List[SkuResponse])
-async def get_skus_by_product_endpoint(
-	request: Request,
-	product_id: UUID,
-	db: Annotated[AsyncSession, Depends(get_db)],
-) -> list[SkuResponse]:
-	"""Retrieve all SKUs associated with a specific product ID."""
-	user_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
-	try:
-		return await sku_service.get_skus_by_product_id(db, product_id, user_id)
-	except ProductNotFoundError as e:
-		raise HTTPException(
-			status_code=404,
-			detail={"code": "NOT_FOUND", "message": str(e)},
 		) from e

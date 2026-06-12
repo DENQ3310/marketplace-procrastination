@@ -1,4 +1,4 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -128,7 +128,7 @@ async def create_new_product(
 		seller_id=seller_id,
 		category_id=product_in.category_id,
 		title=product_in.title,
-		slug=product_in.slug,
+		slug=product_in.slug or f"product-{uuid4().hex}",
 		description=product_in.description,
 		status=ProductStatusEnum.CREATED,
 		deleted=False,
