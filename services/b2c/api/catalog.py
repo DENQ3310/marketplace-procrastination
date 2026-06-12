@@ -240,7 +240,7 @@ async def get_product_list_api(
 	offset: int = 0,
 	filter: Optional[str] = None,
 	sort: str = "popularity",
-	q: str = None,
+	search: Optional[str] = None,
 ) -> ProductShortListResponse:
 	filters_param = None
 	if filter:
@@ -260,7 +260,7 @@ async def get_product_list_api(
 			str(category_id) if category_id else None,
 			filters_param,
 			sort,
-			q,
+			search,
 		)
 	except ValueError as e:
 		raise fastapi.HTTPException(status_code=400, detail=str(e)) from e
