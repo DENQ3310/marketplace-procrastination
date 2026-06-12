@@ -86,7 +86,7 @@ async def get_products_list(
 	if search:
 		search_stripped = search.strip()
 
-		if len(search_stripped) > 0 and len(search_stripped) < 4:
+		if 0 < len(search_stripped) < 4:
 			raise ValueError("Search query must be at least 4 characters")
 
 		if len(search_stripped) > 255:

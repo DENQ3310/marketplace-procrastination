@@ -1,8 +1,9 @@
 import fastapi
 
 import uuid
-from typing import Annotated, Optional
+from typing import Annotated
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import SQLAlchemyError
 from fastapi import Request
 import json
 
@@ -16,7 +17,6 @@ from core import db
 
 
 from schemas.collection import Collection
-from schemas.product import ProductShortListResponse
 from services import (
 	banner_service,
 	category_service,
@@ -133,39 +133,42 @@ async def get_category_filters(
 		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
 
 
-# @router.get("/facets")
+@router.get("/facets", response_model=FacetsResponse)
 async def get_facets(
 	request: Request,
 	db_session: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
 	category_id: uuid.UUID,
 	filters: str | None = None,
 ) -> FacetsResponse:
-	try:
-		qp = request.query_params
-		deep: dict = {}
-		for k, v in qp.multi_items():
-			if k.startswith("filters[") and k.endswith("]"):
-				inner = k[len("filters[") : -1]
-				if inner in deep:
-					if isinstance(deep[inner], list):
-						deep[inner].append(v)
-					else:
-						deep[inner] = [deep[inner], v]
+	qp = request.query_params
+	deep: dict = {}
+	for k, v in qp.multi_items():
+		if k.startswith("filters[") and k.endswith("]"):
+			inner = k[len("filters[") : -1]
+			if inner in deep:
+				if isinstance(deep[inner], list):
+					deep[inner].append(v)
 				else:
-					deep[inner] = v
+					deep[inner] = [deep[inner], v]
+			else:
+				deep[inner] = v
 
-		filters_param = json.dumps(deep, ensure_ascii=False) if deep else filters
+	filters_param = json.dumps(deep, ensure_ascii=False) if deep else filters
 
+	try:
 		return await category_service.get_category_facets(
 			db_session, category_id, filters_param
 		)
 	except CategoryNotFoundError as e:
-		raise fastapi.HTTPException(status_code=404, detail=str(e)) from e
-	except Exception as e:
-		import traceback
-
-		traceback.print_exc()
-		raise fastapi.HTTPException(status_code=503, detail=str(e)) from e
+		raise fastapi.HTTPException(
+			status_code=404,
+			detail={"code": "NOT_FOUND", "message": str(e)},
+		) from e
+	except SQLAlchemyError as e:
+		raise fastapi.HTTPException(
+			status_code=502,
+			detail={"code": "B2B_UNAVAILABLE", "message": "Catalog service is unavailable"},
+		) from e
 
 
 @router.get("/collections", response_model=list[Collection])
@@ -228,41 +231,5 @@ async def get_similar_products_api(
 			status_code=404,
 			detail={"code": "NOT_FOUND", "message": str(err)},
 		) from err
-	except Exception as e:
-		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.get("/products", response_model=ProductShortListResponse)
-async def get_product_list_api(
-	db: Annotated[AsyncSession, fastapi.Depends(db.get_db)],
-	category_id: Optional[uuid.UUID] = None,
-	limit: int = 20,
-	offset: int = 0,
-	filter: Optional[str] = None,
-	sort: str = "popularity",
-	search: Optional[str] = None,
-) -> ProductShortListResponse:
-	filters_param = None
-	if filter:
-		try:
-			filters_obj = json.loads(filter)
-			filters_param = json.dumps(filters_obj, ensure_ascii=False)
-		except json.JSONDecodeError as e:
-			raise fastapi.HTTPException(
-				status_code=400, detail="Invalid JSON in filters parameter"
-			) from e
-
-	try:
-		return await product_service.get_products_list(
-			db,
-			limit,
-			offset,
-			str(category_id) if category_id else None,
-			filters_param,
-			sort,
-			search,
-		)
-	except ValueError as e:
-		raise fastapi.HTTPException(status_code=400, detail=str(e)) from e
 	except Exception as e:
 		raise fastapi.HTTPException(status_code=500, detail=str(e)) from e
