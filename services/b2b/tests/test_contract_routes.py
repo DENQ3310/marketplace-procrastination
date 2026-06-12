@@ -20,6 +20,12 @@ def test_sku_list_route_matches_contract() -> None:
 	assert "/api/v1/skus/product/{product_id}" not in paths
 
 
+def test_delete_sku_route_matches_contract() -> None:
+	paths = app.openapi()["paths"]
+
+	assert "delete" in paths["/api/v1/skus/{sku_id}"]
+
+
 def test_product_create_allows_omitting_slug_and_images() -> None:
 	assert ProductCreate.model_fields["slug"].is_required() is False
 	assert ProductCreate.model_fields["images"].is_required() is False

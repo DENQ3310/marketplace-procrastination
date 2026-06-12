@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.db import get_db
 from exceptions.product import ProductNotFoundError, ProductNotOwnerError
 from exceptions.sku import (
+	SkuActiveReservesError,
 	SkuForbiddenError,
 	SkuNotFoundError,
 	SkuValidationError,
@@ -141,4 +142,35 @@ async def get_sku_endpoint(
 		raise HTTPException(
 			status_code=403,
 			detail={"code": "NOT_OWNER", "message": str(e)},
+		) from e
+
+
+@router.delete("/{sku_id}")
+async def delete_sku_endpoint(
+	request: Request,
+	sku_id: UUID,
+	db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, str]:
+	user_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
+	try:
+		return await sku_service.delete_sku(db, sku_id, user_id)
+	except SkuNotFoundError as e:
+		raise HTTPException(
+			status_code=404,
+			detail={"code": "NOT_FOUND", "message": str(e)},
+		) from e
+	except ProductNotOwnerError as e:
+		raise HTTPException(
+			status_code=403,
+			detail={"code": "NOT_OWNER", "message": str(e)},
+		) from e
+	except SkuForbiddenError as e:
+		raise HTTPException(
+			status_code=403,
+			detail={"code": "FORBIDDEN", "message": str(e)},
+		) from e
+	except SkuActiveReservesError as e:
+		raise HTTPException(
+			status_code=409,
+			detail={"code": "ACTIVE_RESERVES", "message": str(e)},
 		) from e
