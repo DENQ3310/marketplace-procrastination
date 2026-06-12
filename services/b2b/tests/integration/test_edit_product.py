@@ -43,7 +43,14 @@ async def test_edit_moderated_product_returns_to_on_moderation(
 	events = await _outbox_events_for_product(db_session, data.moderated_product.id)
 	assert len(events) == 1
 	assert events[0].event_type == "PRODUCT_EDITED"
+	assert set(events[0].payload) == {
+		"event_type",
+		"idempotency_key",
+		"occurred_at",
+		"payload",
+	}
 	assert events[0].payload["event_type"] == "PRODUCT_EDITED"
+	assert events[0].payload["occurred_at"].endswith("Z")
 	assert events[0].payload["payload"]["product_id"] == str(
 		data.moderated_product.id
 	)

@@ -2,11 +2,20 @@ from main import app
 from schemas.product import ProductCreate
 
 
-def test_sku_routes_match_contract() -> None:
+def test_edit_routes_use_patch_only() -> None:
 	paths = app.openapi()["paths"]
 
-	assert set(paths["/api/v1/skus/{sku_id}"]) >= {"get", "patch"}
-	assert "put" not in paths["/api/v1/skus/{sku_id}"]
+	for path in (
+		"/api/v1/products/{product_id}",
+		"/api/v1/skus/{sku_id}",
+	):
+		assert "patch" in paths[path]
+		assert "put" not in paths[path]
+
+
+def test_sku_list_route_matches_contract() -> None:
+	paths = app.openapi()["paths"]
+
 	assert "/api/v1/products/{product_id}/skus" in paths
 	assert "/api/v1/skus/product/{product_id}" not in paths
 
