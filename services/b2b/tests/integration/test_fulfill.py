@@ -26,10 +26,11 @@ async def _reserve(
 	client: AsyncClient, items: list[tuple[uuid.UUID, int]]
 ) -> None:
 	response = await client.post(
-		"/api/v1/reserve",
+		"/api/v1/inventory/reserve",
 		headers=PUBLIC_CATALOG_SERVICE_KEY_HEADERS,
 		json={
 			"idempotency_key": str(uuid.uuid4()),
+			"order_id": str(uuid.uuid4()),
 			"items": [
 				{"sku_id": str(sku_id), "quantity": quantity}
 				for sku_id, quantity in items

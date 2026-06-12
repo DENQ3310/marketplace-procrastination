@@ -23,3 +23,12 @@ def test_sku_list_route_matches_contract() -> None:
 def test_product_create_allows_omitting_slug_and_images() -> None:
 	assert ProductCreate.model_fields["slug"].is_required() is False
 	assert ProductCreate.model_fields["images"].is_required() is False
+
+
+def test_inventory_routes_match_contract() -> None:
+	paths = app.openapi()["paths"]
+
+	assert "/api/v1/inventory/reserve" in paths
+	assert "/api/v1/inventory/unreserve" in paths
+	assert "/api/v1/reserve" not in paths
+	assert "/api/v1/unreserve" not in paths
