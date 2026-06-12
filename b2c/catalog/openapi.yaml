@@ -1,0 +1,181 @@
+openapi: 3.0.3
+info:
+  title: B2C Catalog API
+  description: >
+    OpenAPI-контракт для каталожных эндпоинтов B2C-приложения.
+    На текущем этапе описывает блок "Похожие товары" (US-CAT-04).
+  version: 0.1.0
+
+servers:
+  - url: /api/v1/catalog
+
+paths:
+  /products/{id}/similar:
+    get:
+      summary: Похожие товары
+      description: >
+        Возвращает до `limit` товаров, похожих на товар `id`: сначала из той
+        же категории, а если их не хватает — дополнительно из родительской
+        категории. Текущий товар исключается из результата. Если похожих
+        товаров нет, возвращается пустой список.
+      operationId: getSimilarProducts
+      tags:
+        - catalog
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID товара, для которого нужны похожие
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Максимальное количество товаров в ответе
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        "200":
+          description: Список похожих товаров (может быть пустым)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CatalogProductCard"
+              examples:
+                empty:
+                  summary: Похожих товаров нет
+                  value: []
+        "404":
+          description: Товар с указанным id не найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: NOT_FOUND
+                message: "Product with id ... not found"
+
+components:
+  schemas:
+    ImageRef:
+      type: object
+      required:
+        - id
+        - url
+        - ordering
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+        alt:
+          type: string
+          default: ""
+        ordering:
+          type: integer
+          minimum: 0
+        is_main:
+          type: boolean
+          default: false
+
+    CategoryRef:
+      type: object
+      required:
+        - id
+        - name
+        - level
+        - path
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+        level:
+          type: integer
+          minimum: 0
+        path:
+          type: array
+          items:
+            type: string
+
+    CatalogProductSeller:
+      type: object
+      required:
+        - id
+        - display_name
+      properties:
+        id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+
+    CatalogProductCard:
+      type: object
+      required:
+        - id
+        - name
+        - min_price
+        - has_stock
+        - images
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        min_price:
+          type: integer
+        old_price:
+          type: integer
+          nullable: true
+        slug:
+          type: string
+          nullable: true
+        category:
+          allOf:
+            - $ref: "#/components/schemas/CategoryRef"
+          nullable: true
+        has_stock:
+          type: boolean
+        rating:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 5
+          nullable: true
+        reviews_count:
+          type: integer
+          minimum: 0
+          default: 0
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImageRef"
+        seller:
+          allOf:
+            - $ref: "#/components/schemas/CatalogProductSeller"
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
