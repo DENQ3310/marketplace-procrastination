@@ -1,0 +1,280 @@
+openapi: 3.0.3
+info:
+  title: B2C Cart API
+  description: >
+    OpenAPI-контракт для эндпоинтов корзины и избранного B2C-приложения.
+    Описывает блок "Избранное" (US-CART-01): добавление, удаление и
+    список избранных товаров с обогащением из B2B.
+  version: 0.1.0
+
+servers:
+  - url: /api/v1
+
+security:
+  - bearerAuth: []
+
+paths:
+  /favorites:
+    get:
+      summary: Список избранного
+      description: >
+        Возвращает избранные товары текущего пользователя, обогащённые
+        данными из каталога (категория, рейтинг, отзывы, продавец).
+        Заблокированные/удалённые в B2B товары исключаются из ответа.
+
+        `user_id` определяется **только** из JWT (claims проверенного
+        access-токена), любой `user_id` в query или body игнорируется.
+      operationId: getFavorites
+      tags:
+        - favorites
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Максимум элементов в ответе
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          description: Смещение от начала списка
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Список избранного
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedCatalogProducts"
+        "401":
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: UNAUTHORIZED
+                message: "Missing or invalid Authorization header"
+
+  /favorites/{product_id}:
+    put:
+      summary: Добавить товар в избранное
+      description: >
+        Добавляет товар в избранное текущего пользователя. Идемпотентно:
+        повторное добавление того же товара возвращает `204` и не создаёт
+        дубль записи.
+      operationId: addToFavorites
+      tags:
+        - favorites
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          description: UUID товара
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Товар добавлен в избранное (или уже был там)
+        "401":
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: UNAUTHORIZED
+                message: "Missing or invalid Authorization header"
+        "404":
+          description: Товар не найден или недоступен для добавления
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: NOT_FOUND
+                message: "Товар не найден"
+    delete:
+      summary: Удалить товар из избранного
+      description: >
+        Удаляет товар из избранного текущего пользователя. Идемпотентно:
+        удаление отсутствующей записи также возвращает `204`.
+      operationId: removeFromFavorites
+      tags:
+        - favorites
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          description: UUID товара
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Товар удалён из избранного (или не был в нём)
+        "401":
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: UNAUTHORIZED
+                message: "Missing or invalid Authorization header"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        user_id извлекается из claims токена middleware'ом после проверки
+        подписи и активной сессии. user_id из query/body не используется —
+        это защита от IDOR на список избранного.
+
+  schemas:
+    ImageRef:
+      type: object
+      required:
+        - id
+        - url
+        - ordering
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+        alt:
+          type: string
+          default: ""
+        ordering:
+          type: integer
+          minimum: 0
+        is_main:
+          type: boolean
+          default: false
+
+    CategoryRef:
+      type: object
+      required:
+        - id
+        - name
+        - level
+        - path
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+        level:
+          type: integer
+          minimum: 0
+        path:
+          type: array
+          items:
+            type: string
+
+    CatalogProductSeller:
+      type: object
+      required:
+        - id
+        - display_name
+      properties:
+        id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+
+    CatalogProductCard:
+      type: object
+      required:
+        - id
+        - name
+        - min_price
+        - has_stock
+        - images
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        min_price:
+          type: integer
+        old_price:
+          type: integer
+          nullable: true
+        slug:
+          type: string
+          nullable: true
+        category:
+          allOf:
+            - $ref: "#/components/schemas/CategoryRef"
+          nullable: true
+        has_stock:
+          type: boolean
+        rating:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 5
+          nullable: true
+        reviews_count:
+          type: integer
+          minimum: 0
+          default: 0
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImageRef"
+        seller:
+          allOf:
+            - $ref: "#/components/schemas/CatalogProductSeller"
+          nullable: true
+
+    PaginatedCatalogProducts:
+      type: object
+      required:
+        - items
+        - total_count
+        - limit
+        - offset
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CatalogProductCard"
+        total_count:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
