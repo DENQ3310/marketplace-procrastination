@@ -1,5 +1,5 @@
 from main import app
-from schemas.product import ProductCreate
+from schemas.product import ProductCreate, ProductPaginatedResponse
 
 
 def test_edit_routes_use_patch_only() -> None:
@@ -29,6 +29,25 @@ def test_delete_sku_route_matches_contract() -> None:
 def test_product_create_allows_omitting_slug_and_images() -> None:
 	assert ProductCreate.model_fields["slug"].is_required() is False
 	assert ProductCreate.model_fields["images"].is_required() is False
+
+
+def test_seller_product_list_uses_pagination_contract() -> None:
+	assert set(ProductPaginatedResponse.model_fields) == {
+		"items",
+		"total_count",
+		"limit",
+		"offset",
+	}
+	operation = app.openapi()["paths"]["/api/v1/products"]["get"]
+	response_schema = operation["responses"]["200"]["content"]["application/json"][
+		"schema"
+	]
+	assert {"$ref": "#/components/schemas/ProductPaginatedResponse"} in response_schema[
+		"anyOf"
+	]
+	assert {"limit", "offset", "include_deleted"} <= {
+		parameter["name"] for parameter in operation["parameters"]
+	}
 
 
 def test_inventory_routes_match_contract() -> None:

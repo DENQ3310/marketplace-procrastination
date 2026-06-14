@@ -50,6 +50,13 @@ class ProductSellerRead(BaseModel):
 	model_config = ConfigDict(from_attributes=True)
 
 
+class ProductPaginatedResponse(BaseModel):
+	items: list[ProductSellerRead]
+	total_count: int
+	limit: int
+	offset: int
+
+
 class ProductImageResponse(BaseModel):
 	id: UUID
 	url: str

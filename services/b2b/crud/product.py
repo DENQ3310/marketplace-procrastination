@@ -181,7 +181,10 @@ async def get_seller_products(
 	seller_id: UUID,
 	status: ProductStatusEnum | None = None,
 	search: str | None = None,
-) -> list[tuple[Product, int, int]]:
+	limit: int = 20,
+	offset: int = 0,
+	include_deleted: bool = True,
+) -> tuple[list[tuple[Product, int, int]], int]:
 	sku_aggregates = (
 		select(
 			Sku.product_id.label("product_id"),
@@ -199,19 +202,28 @@ async def get_seller_products(
 		)
 		.outerjoin(sku_aggregates, Product.id == sku_aggregates.c.product_id)
 		.where(Product.seller_id == seller_id)
-		.order_by(Product.created_at.desc())
+		.order_by(Product.created_at.desc(), Product.id.desc())
 	)
+	count_query = select(func.count(Product.id)).where(Product.seller_id == seller_id)
 	if status is not None:
 		query = query.where(Product.status == status)
+		count_query = count_query.where(Product.status == status)
+	if not include_deleted:
+		query = query.where(Product.deleted.is_(False))
+		count_query = count_query.where(Product.deleted.is_(False))
 	if search:
 		escaped = (
 			search.strip().replace("/", "//").replace("%", "/%").replace("_", "/_")
 		)
 		if escaped:
-			query = query.where(Product.title.ilike(f"%{escaped}%", escape="/"))
+			search_condition = Product.title.ilike(f"%{escaped}%", escape="/")
+			query = query.where(search_condition)
+			count_query = count_query.where(search_condition)
 
-	result = await db.execute(query)
-	return [(product, int(count), int(total)) for product, count, total in result.all()]
+	total_count = int((await db.execute(count_query)).scalar() or 0)
+	result = await db.execute(query.offset(offset).limit(limit))
+	rows = [(product, int(count), int(total)) for product, count, total in result.all()]
+	return rows, total_count
 
 
 async def get_product_by_id(
