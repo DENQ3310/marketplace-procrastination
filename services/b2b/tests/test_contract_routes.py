@@ -38,3 +38,15 @@ def test_inventory_routes_match_contract() -> None:
 	assert "/api/v1/inventory/unreserve" in paths
 	assert "/api/v1/reserve" not in paths
 	assert "/api/v1/unreserve" not in paths
+
+
+def test_moderation_event_route_matches_contract() -> None:
+	openapi = app.openapi()
+	paths = openapi["paths"]
+
+	assert "post" in paths["/api/v1/moderation/events"]
+	assert "204" in paths["/api/v1/moderation/events"]["post"]["responses"]
+	assert "/api/v1/events/moderation" not in paths
+	request_schema = openapi["components"]["schemas"]["ModerationEventRequest"]
+	assert "event_type" in request_schema["required"]
+	assert "status" not in request_schema["properties"]
