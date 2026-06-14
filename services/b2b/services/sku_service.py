@@ -105,6 +105,12 @@ async def create_sku(db: AsyncSession, data: SkuCreate, seller_id: UUID) -> SkuR
 	if moderation_event == "CREATED" and not sku_images:
 		raise SkuValidationError("at least one image is required for the first SKU")
 
+	json_before = (
+		await product_crud.build_product_snapshot(db, product)
+		if moderation_event == "EDITED"
+		else None
+	)
+
 	sku_payload = data.model_dump()
 	sku_payload["cost_price"] = (
 		sku_payload.get("cost_price")
@@ -119,6 +125,7 @@ async def create_sku(db: AsyncSession, data: SkuCreate, seller_id: UUID) -> SkuR
 		product=product,
 		images=sku_images,
 		moderation_event=moderation_event,
+		json_before=json_before,
 	)
 	return await build_sku_response(db, sku)
 
@@ -167,9 +174,7 @@ async def update_sku(
 	return await build_sku_response(db, updated)
 
 
-async def delete_sku(
-	db: AsyncSession, sku_id: UUID, seller_id: UUID
-) -> dict[str, str]:
+async def delete_sku(db: AsyncSession, sku_id: UUID, seller_id: UUID) -> dict[str, str]:
 	pair = await sku_crud.get_sku_and_product_for_update(db, sku_id)
 	if pair is None:
 		raise SkuNotFoundError(f"SKU with id {sku_id} not found")

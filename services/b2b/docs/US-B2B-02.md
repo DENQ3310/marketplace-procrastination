@@ -8,6 +8,11 @@
 `ON_MODERATION` и создаёт `PRODUCT_EDITED`. Дополнительный SKU у уже
 `ON_MODERATION` товара не создаёт повторного события.
 
+Событие `PRODUCT_CREATED` содержит обязательный снимок карточки
+`payload.json_after`. Событие `PRODUCT_EDITED` содержит оба снимка:
+`payload.json_before` до добавления SKU и `payload.json_after` после добавления
+SKU и перевода товара в `ON_MODERATION`.
+
 Доставка событий: transactional outbox (`outbox_events`) + фоновый worker
 (`OUTBOX_WORKER_ENABLED`), публикация в RabbitMQ (`core/messaging`). Сообщение
 передаёт `X-Service-Key` в AMQP headers и имеет контрактную форму
