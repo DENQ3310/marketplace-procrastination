@@ -119,7 +119,7 @@ async def _apply_inventory_operation(
 			sku.reserved_quantity += quantity
 			if sku.active_quantity == 0:
 				await outbox_crud.enqueue_sku_out_of_stock_event(
-					db, sku.id, sku.product_id
+					db, sku.id, sku.product_id, sku.active_quantity
 				)
 		else:
 			sku.active_quantity += quantity

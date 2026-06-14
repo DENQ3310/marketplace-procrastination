@@ -199,6 +199,7 @@ async def test_sku_out_of_stock_event_emitted(
 	event = result.scalar_one()
 	assert event.routing_key == "b2c.sku.out_of_stock"
 	assert event.payload["payload"]["sku_id"] == str(sku.id)
+	assert event.payload["payload"]["available_quantity"] == 0
 
 
 async def test_unreserve_restores_quantities(

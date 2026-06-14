@@ -24,6 +24,9 @@ def test_delete_sku_route_matches_contract() -> None:
 	paths = app.openapi()["paths"]
 
 	assert "delete" in paths["/api/v1/skus/{sku_id}"]
+	delete_responses = paths["/api/v1/skus/{sku_id}"]["delete"]["responses"]
+	assert "204" in delete_responses
+	assert "content" not in delete_responses["204"]
 
 
 def test_product_create_allows_omitting_slug_and_images() -> None:

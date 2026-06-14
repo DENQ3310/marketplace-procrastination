@@ -78,6 +78,7 @@ def build_b2c_product_deleted_payload(
 def build_b2c_sku_out_of_stock_payload(
 	sku_id: UUID,
 	product_id: UUID,
+	available_quantity: int,
 	idempotency_key: UUID,
 ) -> dict:
 	occurred_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -88,6 +89,7 @@ def build_b2c_sku_out_of_stock_payload(
 		"payload": {
 			"sku_id": str(sku_id),
 			"product_id": str(product_id),
+			"available_quantity": available_quantity,
 		},
 	}
 
@@ -180,6 +182,7 @@ async def enqueue_sku_out_of_stock_event(
 	db: AsyncSession,
 	sku_id: UUID,
 	product_id: UUID,
+	available_quantity: int,
 ) -> OutboxEvent:
 	idempotency_key = uuid.uuid4()
 	event = OutboxEvent(
@@ -189,6 +192,7 @@ async def enqueue_sku_out_of_stock_event(
 		payload=build_b2c_sku_out_of_stock_payload(
 			sku_id,
 			product_id,
+			available_quantity,
 			idempotency_key,
 		),
 		status=OutboxEventStatus.PENDING,

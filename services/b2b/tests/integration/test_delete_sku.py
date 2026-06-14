@@ -82,8 +82,8 @@ async def test_delete_sku_succeeds(
 
 	response = await client.delete(f"/api/v1/skus/{skus[0].id}", headers=headers)
 
-	assert response.status_code == 200
-	assert response.json() == {"message": "SKU deleted successfully"}
+	assert response.status_code == 204
+	assert response.content == b""
 	db_session.expire_all()
 	assert await db_session.get(Sku, skus[0].id) is None
 	assert await db_session.get(Sku, skus[1].id) is not None
@@ -122,7 +122,7 @@ async def test_last_sku_on_moderation_transitions_product_to_created(
 
 	response = await client.delete(f"/api/v1/skus/{skus[0].id}", headers=headers)
 
-	assert response.status_code == 200
+	assert response.status_code == 204
 	await db_session.refresh(product)
 	assert product.status == ProductStatusEnum.CREATED
 	events = await _events_for_product(db_session, product.id)
@@ -188,10 +188,11 @@ async def test_sku_out_of_stock_event_on_moderated_product(
 
 	response = await client.delete(f"/api/v1/skus/{skus[0].id}", headers=headers)
 
-	assert response.status_code == 200
+	assert response.status_code == 204
 	events = await _events_for_sku(db_session, skus[0].id)
 	assert len(events) == 1
 	assert events[0].event_type == "SKU_OUT_OF_STOCK"
 	assert events[0].routing_key == "b2c.sku.out_of_stock"
 	assert events[0].payload["payload"]["product_id"] == str(product.id)
+	assert events[0].payload["payload"]["available_quantity"] == 5
 	assert events[0].status == OutboxEventStatus.PENDING

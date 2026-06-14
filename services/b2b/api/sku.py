@@ -2,7 +2,7 @@ import uuid
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.db import get_db
@@ -145,15 +145,16 @@ async def get_sku_endpoint(
 		) from e
 
 
-@router.delete("/{sku_id}")
+@router.delete("/{sku_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_sku_endpoint(
 	request: Request,
 	sku_id: UUID,
 	db: Annotated[AsyncSession, Depends(get_db)],
-) -> dict[str, str]:
+) -> Response:
 	user_id = uuid.UUID(str(getattr(request.state, "user_id", None)))
 	try:
-		return await sku_service.delete_sku(db, sku_id, user_id)
+		await sku_service.delete_sku(db, sku_id, user_id)
+		return Response(status_code=status.HTTP_204_NO_CONTENT)
 	except SkuNotFoundError as e:
 		raise HTTPException(
 			status_code=404,

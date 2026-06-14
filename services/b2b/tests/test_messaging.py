@@ -129,6 +129,7 @@ async def test_b2c_sku_out_of_stock_payload_matches_contract() -> None:
 	payload = build_b2c_sku_out_of_stock_payload(
 		sku_id,
 		product_id,
+		0,
 		idempotency_key,
 	)
 
@@ -138,6 +139,7 @@ async def test_b2c_sku_out_of_stock_payload_matches_contract() -> None:
 	assert payload["payload"] == {
 		"sku_id": str(sku_id),
 		"product_id": str(product_id),
+		"available_quantity": 0,
 	}
 
 
@@ -210,7 +212,11 @@ async def test_b2c_event_has_service_key_header(
 			"event_type": "SKU_OUT_OF_STOCK",
 			"idempotency_key": "event-id",
 			"occurred_at": "2026-06-10T00:00:00Z",
-			"payload": {"sku_id": "sku-id", "product_id": "product-id"},
+			"payload": {
+				"sku_id": "sku-id",
+				"product_id": "product-id",
+				"available_quantity": 0,
+			},
 		},
 	)
 

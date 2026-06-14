@@ -174,7 +174,7 @@ async def update_sku(
 	return await build_sku_response(db, updated)
 
 
-async def delete_sku(db: AsyncSession, sku_id: UUID, seller_id: UUID) -> dict[str, str]:
+async def delete_sku(db: AsyncSession, sku_id: UUID, seller_id: UUID) -> None:
 	pair = await sku_crud.get_sku_and_product_for_update(db, sku_id)
 	if pair is None:
 		raise SkuNotFoundError(f"SKU with id {sku_id} not found")
@@ -203,10 +203,11 @@ async def delete_sku(db: AsyncSession, sku_id: UUID, seller_id: UUID) -> dict[st
 			event="DELETED",
 		)
 	if emit_out_of_stock:
-		await outbox_crud.enqueue_sku_out_of_stock_event(db, sku_id, product.id)
+		await outbox_crud.enqueue_sku_out_of_stock_event(
+			db, sku_id, product.id, sku.active_quantity
+		)
 
 	await db.commit()
-	return {"message": "SKU deleted successfully"}
 
 
 async def get_skus_by_product_id(
