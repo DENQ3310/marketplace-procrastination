@@ -3,6 +3,7 @@ import uuid
 import pytest
 from pydantic import ValidationError
 
+from schemas.fulfill import FulfillResponse
 from schemas.inventory import (
 	InventoryOrderRequest,
 	InventoryOrderResponse,
@@ -41,3 +42,11 @@ def test_unreserve_contract_uses_order_id_without_idempotency_key() -> None:
 			idempotency_key=uuid.uuid4(),
 			items=[{"sku_id": uuid.uuid4(), "quantity": 1}],
 		)
+
+
+def test_fulfill_response_matches_inventory_order_contract() -> None:
+	assert set(FulfillResponse.model_fields) == {
+		"order_id",
+		"status",
+		"processed_at",
+	}

@@ -36,8 +36,10 @@ def test_inventory_routes_match_contract() -> None:
 
 	assert "/api/v1/inventory/reserve" in paths
 	assert "/api/v1/inventory/unreserve" in paths
+	assert "/api/v1/inventory/fulfill" in paths
 	assert "/api/v1/reserve" not in paths
 	assert "/api/v1/unreserve" not in paths
+	assert "/api/v1/fulfill" not in paths
 
 
 def test_moderation_event_route_matches_contract() -> None:

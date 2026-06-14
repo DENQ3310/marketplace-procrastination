@@ -10,7 +10,7 @@ SERVICE_CATALOG_PATH = "/api/v1/products"
 INVENTORY_SERVICE_PATHS = {
 	"/api/v1/inventory/reserve",
 	"/api/v1/inventory/unreserve",
-	"/api/v1/fulfill",
+	"/api/v1/inventory/fulfill",
 }
 MODERATION_SERVICE_PATH = "/api/v1/moderation/events"
 
